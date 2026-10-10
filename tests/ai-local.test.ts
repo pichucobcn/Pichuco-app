@@ -60,7 +60,8 @@ test("resumen de mañana", async () => {
   const martin = await user("martin@pichuco.es");
   const r = await localAgent(martin, "¿Qué tenemos mañana?");
   assert.match(r.text, /MAÑANA EN PICHUCO/);
-  assert.match(r.text, /Reservas/);
+  assert.match(r.text, /RESERVAS/);
+  assert.doesNotMatch(r.text, /\p{Extended_Pictographic}/u);
   assert.match(r.text, /Harina 18:15/);
 });
 

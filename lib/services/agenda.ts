@@ -63,7 +63,7 @@ function qty(t: { quantity: number | null; unit: string | null; title: string })
 /** Resumen en texto tipo "MAÑANA EN PICHUCO" que usan Pichuco AI y la Home. */
 export function formatSchedule(s: Schedule): string {
   const lines: string[] = [`${s.label.toUpperCase()} EN PICHUCO`];
-  lines.push("", "👥 Personal");
+  lines.push("", "PERSONAL");
   if (!s.staff.length) lines.push("• Sin turnos cargados");
   for (const p of s.staff) {
     if (p.absent) lines.push(`• ${p.name} — no viene`);
@@ -71,24 +71,24 @@ export function formatSchedule(s: Schedule): string {
     else lines.push(`• ${p.name} ${p.start}–${p.end}`);
   }
   if (s.production.length) {
-    lines.push("", "🍕 Producción");
-    for (const t of s.production) lines.push(`• ${qty(t)}${t.status === "COMPLETADA" ? " ✓" : ""}${t.dueTime ? ` (antes de ${t.dueTime})` : ""}`);
+    lines.push("", "PRODUCCIÓN");
+    for (const t of s.production) lines.push(`• ${qty(t)}${t.status === "COMPLETADA" ? " (hecho)" : ""}${t.dueTime ? ` (antes de ${t.dueTime})` : ""}`);
   }
   if (s.tasks.length) {
-    lines.push("", "✅ Tareas");
+    lines.push("", "TAREAS");
     for (const t of s.tasks)
-      lines.push(`• ${t.title}${t.assignee ? ` — ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " ✓" : ""}`);
+      lines.push(`• ${t.title}${t.assignee ? ` — ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " (hecha)" : ""}`);
   }
   if (s.deliveries.length) {
-    lines.push("", "📦 Entregas");
+    lines.push("", "ENTREGAS");
     for (const e of s.deliveries) lines.push(`• ${e.title} ${e.time}${e.responsible ? ` (recibe ${e.responsible})` : ""}`);
   }
   if (s.reservations.length) {
-    lines.push("", "🪑 Reservas");
+    lines.push("", "RESERVAS");
     for (const e of s.reservations) lines.push(`• ${e.time} — ${e.people} personas${e.title ? ` (${e.title})` : ""}`);
   }
   if (s.takeaway.length) {
-    lines.push("", "🥡 Para llevar");
+    lines.push("", "PARA LLEVAR");
     for (const e of s.takeaway) lines.push(`• ${e.time} — ${e.title}${e.detail ? `: ${e.detail}` : ""}`);
   }
   return lines.join("\n");

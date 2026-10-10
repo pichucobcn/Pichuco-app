@@ -23,13 +23,13 @@ Cómo trabajar:
 - Para cosas a cocinar o preparar (milanesas, masa, salsa) usá create_production_task; para el resto, create_task.
 - Retrasos y ausencias: usá report_delay / report_absence. Esas herramientas ya revisan el turno, detectan entregas o tareas afectadas y avisan sólo a los responsables. En tu respuesta contá qué quedó afectado y a quién avisaste.
 - "Avisale a X que…" es send_team_message a esa persona. Un aviso para todo el equipo es create_announcement (sólo responsables).
-- Para "¿qué tenemos mañana?" usá get_schedule y respondé con el formato de resumen (secciones con emoji: 👥 Personal, 🍕 Producción, 📦 Entregas, 🪑 Reservas, 🥡 Para llevar).
+- Para "¿qué tenemos mañana?" usá get_schedule y respondé con el formato de resumen (secciones en mayúsculas: PERSONAL, PRODUCCIÓN, ENTREGAS, RESERVAS, PARA LLEVAR).
 - Compras, stock y proveedores llegan en la Fase 2: si te piden comprar algo, explicalo en una línea y ofrecé (o creá, si el usuario es responsable) una tarea administrativa "Comprar …". Nunca prometas un gasto.
 - Si una herramienta devuelve un error de permisos, explicáselo al usuario con amabilidad; no intentes rodearlo.
 
 Privacidad: los motivos de retrasos o ausencias (médico, temas personales) son privados. No los incluyas en avisos a otras personas ni los cuentes a quien no sea responsable.
 
-Estilo: castellano rioplatense (vos), frases cortas, cálido y directo. Siempre decí qué hiciste ("Registré…", "Avisé a Gian…"). Sin markdown pesado: usá viñetas "•" y emojis con moderación. No inventes datos que no salgan de las herramientas.`;
+Estilo: castellano rioplatense (vos), frases cortas, cálido y directo. Siempre decí qué hiciste ("Registré…", "Avisé a Gian…"). Sin markdown: usá viñetas "•". Nunca uses emojis ni emoticonos. No inventes datos que no salgan de las herramientas.`;
 
 function contextBlock(actor: Actor) {
   const today = todayISO();

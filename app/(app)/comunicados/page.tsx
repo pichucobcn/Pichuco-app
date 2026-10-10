@@ -27,7 +27,7 @@ export default async function ComunicadosPage() {
               <span>
                 {a.author} · {relativeDay(dateOf(a.createdAt))} {timeOf(a.createdAt)}
               </span>
-              {a.createdByAi && <span className="tag ai">✦ vía Pichuco AI</span>}
+              {a.createdByAi && <span className="tag ai">vía Pichuco AI</span>}
               <span className="spacer" />
               <span>
                 Leído por {a.readCount}/{a.teamSize}
@@ -35,7 +35,7 @@ export default async function ComunicadosPage() {
             </div>
             {a.readers && (
               <p className="small muted" style={{ margin: "6px 0 0" }}>
-                ✓ {a.readers.map((r) => `${r.name} ${timeOf(r.at)}`).join(" · ")}
+                Leído por: {a.readers.map((r) => `${r.name} ${timeOf(r.at)}`).join(" · ")}
               </p>
             )}
             {!a.readByMe && <MarkRead id={a.id} />}

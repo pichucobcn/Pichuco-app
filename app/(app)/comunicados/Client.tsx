@@ -18,7 +18,7 @@ export function MarkRead({ id }: { id: string }) {
         router.refresh();
       }}
     >
-      ✓ Leído
+      <Icon name="check" size={18} stroke={2.5} /> Marcar como leído
     </button>
   );
 }

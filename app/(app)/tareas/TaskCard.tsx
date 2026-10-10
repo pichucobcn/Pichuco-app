@@ -79,7 +79,7 @@ export function TaskCard({ task }: { task: TaskCardData }) {
           {task.priority === "ALTA" && !done && <span className="tag solid-red">Prioridad alta</span>}
           {task.when && <span className="tag brown">{task.when}</span>}
           {task.who && <span className="tag brown">{task.who}</span>}
-          {task.createdByAi && <span className="tag ai">✦ Pichuco AI</span>}
+          {task.createdByAi && <span className="tag ai">Pichuco AI</span>}
         </div>
         {open && (
           <div className="stack" style={{ marginTop: 10 }}>

@@ -9,6 +9,29 @@ export type ChatMessage = { id: string; role: "user" | "assistant"; text: string
 
 const SUGGESTIONS = ["¿Qué tenemos mañana?", "¿Quién trabaja esta noche?", "Mañana hay que preparar 10 milanesas", "Mis pendientes"];
 
+const HEADING = /^[A-ZÁÉÍÓÚÑ ]{4,}$/;
+
+/** Muestra en negrita los rótulos en mayúsculas de las respuestas (p. ej. "ENTREGAS"). */
+function RichText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <>
+      {lines.map((line, i) => {
+        const isHeading = HEADING.test(line.trim());
+        // El salto en blanco antes de un rótulo lo da el propio margen del rótulo.
+        if (!line.trim() && HEADING.test(lines[i + 1]?.trim() ?? "")) return null;
+        if (!isHeading) return <span key={i}>{line + (i < lines.length - 1 ? "\n" : "")}</span>;
+        const title = i === 0 && / EN PICHUCO$/.test(line);
+        return (
+          <span key={i} className={`heading${title ? " first" : ""}`}>
+            {title ? line.charAt(0) + line.slice(1).toLowerCase().replace("pichuco", "Pichuco") : line}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export function ActionsList({ actions }: { actions?: ChatAction[] | null }) {
   if (!actions?.length) return null;
   return (
@@ -68,15 +91,29 @@ export function PichucoChat({
   return (
     <>
       <div className="convo" aria-live="polite">
-        {greeting && (!compact || shown.length === 0) && <div className="msg ai">{greeting}</div>}
-        {shown.map((m) => (
-          <div key={m.id} className={`msg ${m.role === "user" ? "user" : "ai"}`}>
-            {m.text}
-            {m.role === "assistant" && <ActionsList actions={m.actions} />}
+        {greeting && (!compact || shown.length === 0) && (
+          <div className="ai-row">
+            {!compact && <img src="/brand/pichuco-cara.png" alt="" className="ai-face" />}
+            <div className="msg ai">{greeting}</div>
           </div>
-        ))}
+        )}
+        {shown.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="msg user">
+              {m.text}
+            </div>
+          ) : (
+            <div key={m.id} className="ai-row">
+              {!compact && <img src="/brand/pichuco-cara.png" alt="" className="ai-face" />}
+              <div className="msg ai">
+                <RichText text={m.text} />
+                <ActionsList actions={m.actions} />
+              </div>
+            </div>
+          ),
+        )}
         {busy && (
-          <div className="msg ai" aria-label="Pichuco está escribiendo">
+          <div className="msg ai" aria-label="Pichuco está escribiendo" style={{ marginLeft: compact ? 0 : 40 }}>
             <span className="typing">
               <i />
               <i />

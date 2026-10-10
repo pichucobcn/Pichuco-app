@@ -37,7 +37,7 @@ export default async function ChatPage() {
                 <span className="spacer" />
                 {!n.readAt && <span className="tag solid-red">Nuevo</span>}
               </div>
-              <b>🔔 {n.title}</b>
+              <b>{n.title}</b>
               <div style={{ whiteSpace: "pre-line" }}>{n.body}</div>
             </>
           );

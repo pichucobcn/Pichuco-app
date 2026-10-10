@@ -197,7 +197,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     const tasks = r.data.tasks as any[];
     const ann = r.data.unreadAnnouncements as any[];
     const lines = tasks.map((x) => `• ${x.title}${x.date ? ` (${relativeDay(x.date)}${x.dueTime ? " " + x.dueTime : ""})` : ""}`);
-    let text = tasks.length ? `Tenés ${tasks.length} pendientes:\n\n${lines.join("\n")}` : "No tenés tareas pendientes. 🙌";
+    let text = tasks.length ? `Tenés ${tasks.length} pendientes:\n\n${lines.join("\n")}` : "No tenés tareas pendientes.";
     if (ann.length) text += `\n\nY ${ann.length} ${ann.length === 1 ? "comunicado sin leer" : "comunicados sin leer"}.`;
     return { text, actions };
   }
@@ -248,7 +248,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
 
   return {
     text:
-      "No te entendí del todo 🤔 (estoy en modo demo, sin conexión a Claude). Probá con algo como:\n\n" +
+      "No te entendí del todo (estoy en modo demo, sin conexión a Claude). Probá con algo como:\n\n" +
       "• “Mañana llego 30 minutos tarde porque tengo médico.”\n" +
       "• “Mañana hay que preparar 10 milanesas.”\n" +
       "• “Avisale a Gian que mañana llega harina a las 18.”\n" +

@@ -19,7 +19,7 @@ export default async function HistorialPage() {
                 {prettyDate(dateOf(l.createdAt))} — {timeOf(l.createdAt)}
               </span>
               <span className="spacer" />
-              {l.viaAi && <span className="tag ai">✦ Pichuco AI</span>}
+              {l.viaAi && <span className="tag ai">Pichuco AI</span>}
             </div>
             {l.input && (
               <p style={{ margin: "6px 0" }}>

@@ -41,7 +41,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="body">
-          <img src="/brand/pichuco.svg" alt="Pichuco con el teléfono" className="mascot" />
+          <img src="/brand/pichuco.png" alt="Pichuco con su bandoneón" className="mascot" />
           <div className="bubble">{g.text}</div>
         </div>
         <PichucoChat initial={[]} compact />

@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Pichuco",
   description: "Hablale a Pichuco. Pichuco se encarga.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/brand/icon.svg", apple: "/brand/icon.svg" },
+  icons: { icon: "/brand/icon-192.png", apple: "/brand/icon-512.png" },
   appleWebApp: { capable: true, title: "Pichuco", statusBarStyle: "default" },
 };
 

@@ -73,7 +73,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
       <div className="stack" style={{ marginTop: 12 }}>
         {cards.length === 0 ? (
           <div className="empty">
-            <img src="/brand/pichuco.svg" alt="" />
+            <img src="/brand/pichuco.png" alt="" />
             <p>Nada por acá. Podés crear una tarea o decirle a Pichuco: “Mañana hay que preparar 10 milanesas”.</p>
           </div>
         ) : (

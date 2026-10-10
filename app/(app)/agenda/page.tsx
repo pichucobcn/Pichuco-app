@@ -3,6 +3,7 @@ import { requireUserPage } from "@/lib/auth";
 import { assertCan } from "@/lib/permissions";
 import { getSchedule } from "@/lib/services/agenda";
 import { addDays, isISODate, todayISO, weekdayName, relativeDay, prettyDate } from "@/lib/dates";
+import { Icon } from "@/components/Icon";
 import { PageTitle } from "@/components/PageTitle";
 
 type Item = { time: string; icon: string; title: string; sub?: string | null; tone?: "red" | "green" | "amber" };
@@ -18,7 +19,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const items: Item[] = [
     ...s.staff.map((p) => ({
       time: p.absent ? p.start : p.effectiveStart,
-      icon: "👥",
+      icon: "users",
       title: p.absent ? `${p.name} — no viene` : `Entra ${p.name}`,
       sub: p.absent
         ? `Turno ${p.start}–${p.end}${p.reason ? ` · ${p.reason}` : ""}`
@@ -29,20 +30,20 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     })),
     ...s.production.map((t) => ({
       time: t.dueTime ?? "—",
-      icon: "🍕",
+      icon: "pizza",
       title: t.title,
-      sub: `Producción · ${t.status === "COMPLETADA" ? "hecha ✓" : t.status === "EN_CURSO" ? "en curso" : "pendiente"}${t.assignee ? ` · ${t.assignee.shortName}` : ""}`,
+      sub: `Producción · ${t.status === "COMPLETADA" ? "hecha" : t.status === "EN_CURSO" ? "en curso" : "pendiente"}${t.assignee ? ` · ${t.assignee.shortName}` : ""}`,
       tone: t.status === "COMPLETADA" ? ("green" as const) : undefined,
     })),
     ...s.tasks.map((t) => ({
       time: t.dueTime ?? "—",
-      icon: "✅",
+      icon: "tasks",
       title: t.title,
-      sub: `Tarea${t.assignee ? ` · ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " · hecha ✓" : ""}`,
+      sub: `Tarea${t.assignee ? ` · ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " · hecha" : ""}`,
     })),
-    ...s.deliveries.map((e) => ({ time: e.time, icon: "📦", title: `Entrega: ${e.title}`, sub: [e.detail, e.responsible && `Recibe ${e.responsible}`].filter(Boolean).join(" · ") })),
-    ...s.reservations.map((e) => ({ time: e.time, icon: "🪑", title: `Reserva ${e.people} personas`, sub: [e.title, e.detail].filter(Boolean).join(" · ") })),
-    ...s.takeaway.map((e) => ({ time: e.time, icon: "🥡", title: e.title, sub: e.detail })),
+    ...s.deliveries.map((e) => ({ time: e.time, icon: "truck", title: `Entrega: ${e.title}`, sub: [e.detail, e.responsible && `Recibe ${e.responsible}`].filter(Boolean).join(" · ") })),
+    ...s.reservations.map((e) => ({ time: e.time, icon: "table", title: `Reserva ${e.people} personas`, sub: [e.title, e.detail].filter(Boolean).join(" · ") })),
+    ...s.takeaway.map((e) => ({ time: e.time, icon: "bag", title: e.title, sub: e.detail })),
   ].sort((a, b) => (a.time === "—" ? 1 : b.time === "—" ? -1 : a.time.localeCompare(b.time)));
 
   const days = Array.from({ length: 10 }, (_, i) => addDays(today, i - 1));
@@ -84,7 +85,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               <span className="time">{it.time}</span>
               <div className="card row" style={{ padding: "10px 12px", borderColor: it.tone === "red" ? "var(--burgundy)" : undefined, background: it.tone === "red" ? "#fff3ea" : undefined }}>
                 <span className="section-ico" aria-hidden="true">
-                  {it.icon}
+                  <Icon name={it.icon} size={18} />
                 </span>
                 <div style={{ minWidth: 0 }}>
                   <b>{it.title}</b>

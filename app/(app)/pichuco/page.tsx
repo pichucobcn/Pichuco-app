@@ -17,7 +17,7 @@ export default async function PichucoPage() {
     <main>
       <PageTitle title="Pichuco AI" />
       <div className="row" style={{ marginBottom: 8 }}>
-        <img src="/brand/pichuco.svg" alt="" width={56} />
+        <img src="/brand/pichuco-cara.png" alt="" className="ai-face lg" />
         <p className="small muted" style={{ margin: 0 }}>
           Tu asistente operativo. Contale lo que pasa y él lo convierte en tareas, avisos y agenda.
           {aiMode() === "demo" && " (Modo demo: sin API de Claude configurada, entiendo frases sencillas.)"}
