@@ -12,9 +12,6 @@ import { completeTask, createTask, describeTask, listTasks, updateTask } from ".
 import { findUserByName, teamOverview } from "../services/team";
 import { findProduct, fmtEur, fmtQty, isLow, listProducts, lowStock, suggestedQuantity } from "../services/stock";
 import { findSupplier, DAY_SHORT } from "../services/suppliers";
-import { createStaffReservation } from "../services/reservations";
-import { setTakeawayStatus, TK_STATUS_LABEL } from "../services/takeaway";
-import { demandForecast } from "../services/demand";
 import {
   approveOrder,
   createOrder,
@@ -68,8 +65,6 @@ function scheduleView(s: Awaited<ReturnType<typeof getSchedule>>) {
     production: s.production.map(taskView),
     tasks: s.tasks.map(taskView),
     deliveries: s.deliveries,
-    reservations: s.reservations,
-    takeaway: s.takeaway,
     formatted: formatSchedule(s),
   };
 }
@@ -99,14 +94,14 @@ function orderView(o: OrderWithRelations) {
 
 export const TOOLS: Record<string, ToolDef> = {
   get_today_summary: {
-    description: "Resumen de hoy en Pichuco: personal, producción, tareas, entregas, reservas y pedidos para llevar.",
+    description: "Resumen de hoy en Pichuco: personal, producción, tareas y entregas.",
     schema: z.object({}),
     input_schema: { type: "object", properties: {} },
     mutates: false,
     run: async (actor) => ({ result: scheduleView(await getSchedule(actor, todayISO())) }),
   },
   get_schedule: {
-    description: "Agenda completa de un día (personal con retrasos/ausencias, producción, tareas, entregas, reservas, pedidos). Usala para '¿qué tenemos mañana?'.",
+    description: "Agenda completa de un día (personal con retrasos/ausencias, producción, tareas y entregas). Usala para '¿qué tenemos mañana?'.",
     schema: z.object({ date: optDate }),
     input_schema: { type: "object", properties: { date: dateProp }, required: ["date"] },
     mutates: false,
@@ -359,26 +354,6 @@ export const TOOLS: Record<string, ToolDef> = {
       return { result: { sentTo: names }, summary: `Avisó a ${names}: “${i.message}”` };
     },
   },
-  get_reservations: {
-    description: "Reservas de mesa de un día.",
-    schema: z.object({ date: optDate }),
-    input_schema: { type: "object", properties: { date: dateProp }, required: ["date"] },
-    mutates: false,
-    run: async (actor, i) => {
-      if (!can(actor, "reservas") && !can(actor, "agenda")) throw new ForbiddenError("No tenés acceso a reservas.");
-      return { result: (await getSchedule(actor, i.date)).reservations };
-    },
-  },
-  get_takeaway_orders: {
-    description: "Pedidos para llevar de un día.",
-    schema: z.object({ date: optDate }),
-    input_schema: { type: "object", properties: { date: dateProp }, required: ["date"] },
-    mutates: false,
-    run: async (actor, i) => {
-      if (!can(actor, "takeaway") && !can(actor, "produccion")) throw new ForbiddenError("No tenés acceso a pedidos para llevar.");
-      return { result: (await getSchedule(actor, i.date)).takeaway };
-    },
-  },
   get_stock: {
     description: "Stock actual de un producto (o de todos si no se indica): cantidad, mínimo, proveedor habitual y último precio.",
     schema: z.object({ product: z.string().optional() }),
@@ -515,61 +490,6 @@ export const TOOLS: Record<string, ToolDef> = {
     run: async (actor, i, ctx) => {
       const o = await receiveOrder(actor, i.order_number, {}, ctx);
       return { result: orderView(o), summary: `Registró la entrega del pedido #${o.number} y sumó al stock: ${orderSummary(o)}` };
-    },
-  },
-  create_reservation: {
-    description: "Carga una reserva de mesa (por teléfono o en persona). Necesita nombre, teléfono, personas, fecha y hora.",
-    schema: z.object({
-      name: z.string(),
-      phone: z.string(),
-      people: z.number().int().positive(),
-      date: optDate,
-      time: z.string(),
-      notes: z.string().optional(),
-    }),
-    input_schema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        phone: { type: "string" },
-        people: { type: "integer" },
-        date: dateProp,
-        time: { type: "string", description: "HH:MM, en franjas de 30 minutos" },
-        notes: { type: "string" },
-      },
-      required: ["name", "phone", "people", "date", "time"],
-    },
-    mutates: true,
-    run: async (actor, i, ctx) => {
-      const r = await createStaffReservation(actor, { name: i.name, phone: i.phone, people: i.people, date: i.date, time: i.time, notes: i.notes }, ctx);
-      return {
-        result: { code: r.reservation.code, name: r.reservation.customer.name, people: i.people, date: i.date, time: i.time, overCapacity: r.overCapacity },
-        summary: `Reservó mesa para ${i.people} a nombre de ${r.reservation.customer.name} (${i.date} ${i.time})${r.overCapacity ? " — supera el cupo de esa franja" : ""}`,
-      };
-    },
-  },
-  update_takeaway_status: {
-    description: "Cambia el estado de un pedido para llevar: CONFIRMADO, EN_PREPARACION, LISTO, RETIRADO o CANCELADO.",
-    schema: z.object({ order_number: z.number().int().positive(), status: z.enum(["CONFIRMADO", "EN_PREPARACION", "LISTO", "RETIRADO", "CANCELADO"]) }),
-    input_schema: {
-      type: "object",
-      properties: { order_number: { type: "integer" }, status: { type: "string", enum: ["CONFIRMADO", "EN_PREPARACION", "LISTO", "RETIRADO", "CANCELADO"] } },
-      required: ["order_number", "status"],
-    },
-    mutates: true,
-    run: async (actor, i, ctx) => {
-      const o = await setTakeawayStatus(actor, i.order_number, i.status, ctx);
-      return { result: { number: o.number, status: TK_STATUS_LABEL[o.status] }, summary: `Pedido #${o.number}: ${TK_STATUS_LABEL[o.status]}` };
-    },
-  },
-  get_demand_forecast: {
-    description: "Previsión de demanda de un día: comensales, pizzas para llevar, pizzas estimadas frente a la media y kg de masa necesarios vs planificados.",
-    schema: z.object({ date: optDate }),
-    input_schema: { type: "object", properties: { date: dateProp }, required: ["date"] },
-    mutates: false,
-    run: async (actor, i) => {
-      if (!can(actor, "produccion") && !can(actor, "takeaway")) throw new ForbiddenError("No tenés acceso a la previsión.");
-      return { result: await demandForecast(i.date) };
     },
   },
   get_pending_items: {

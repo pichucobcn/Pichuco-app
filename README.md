@@ -6,18 +6,7 @@ Prototipo con:
 
 - **Fase 1**: login, usuarios y roles, Home, Pichuco AI (lenguaje natural → acciones), Fichar, Tareas, Producción, Comunicados, Agenda y Equipo.
 - **Fase 2**: Stock, Proveedores, Compras con reglas de aprobación y Chat del equipo.
-- **Fase 3**: web pública de reservas de mesa (`/reservar`) y pedidos para llevar (`/pedir`), clientes, pagos online y previsión de demanda.
 
-### Reservas y pedidos para llevar (clientes)
-
-- `/reservar`: día, hora (franjas de 30 min con cupo de comensales), personas y datos. Se confirma al instante y el cliente recibe un enlace (`/reserva/CODIGO`) para consultarla o cancelarla.
-- `/pedir`: carta con extras, hora de retiro (franjas de 15 min con cupo de pizzas por horno), pago online o al retirar. Seguimiento en `/pedido/CODIGO`: Nuevo → Confirmado → En preparación → Listo → Retirado.
-- Los precios se calculan siempre en el servidor. Formularios con límite de intentos por IP y campo trampa anti-bots. Aceptar la política de privacidad es obligatorio; las novedades, opcionales.
-- Pagos: con `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` se usa Stripe Checkout (webhook en `/api/public/stripe-webhook`, evento `checkout.session.completed`). Sin Stripe, `PICHUCO_DEMO_PAYMENTS=1` muestra un pago simulado.
-- Equipo: `/reservas` (sala y Martín), `/pedidos` (tablero para cocina, se refresca solo), `/clientes` (sólo Martín; incluye borrado de datos personales a pedido del cliente).
-- Horarios, días de cierre y cupos están en la tabla `RestaurantSettings`.
-- La Agenda y Pichuco AI usan las reservas y pedidos reales. La previsión de demanda compara con la media del mismo día de las 4 semanas anteriores y recomienda los kg de masa (`lib/services/demand.ts`, reglas ajustables).
-- **Antes de publicar:** revisar el texto de `/privacidad` con un asesor y completar los datos del responsable.
 ### Compras y aprobaciones
 
 Estados: Borrador → Pendiente de aprobación → Aprobado → Enviado → Confirmado → Entregado (o Cancelado).
@@ -80,6 +69,10 @@ public/brand/        logo y personaje (provisionales)
 ## Marca
 
 En `public/brand/`: `logo.png` (rojo), `logo-crema.png` (cabecera sobre burdeos), `pichuco.png` (dibujo de Pichuco con el bandoneón), `pichuco-cara.png` (avatar de Pichuco AI) e `icon-192/512.png` (icono de la app). El dibujo es rojo sobre transparente: siempre va sobre fondo crema.
+
+## Archivado
+
+La web pública de **reservas de mesa y pedidos para llevar** (con clientes, pagos online y previsión de demanda) está guardada en la rama `archivo/fase-3-reservas-y-pedidos`. Por ahora la app es sólo de uso interno.
 
 ## Próximas fases
 

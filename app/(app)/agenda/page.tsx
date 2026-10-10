@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUserPage } from "@/lib/auth";
-import { assertCan, can } from "@/lib/permissions";
+import { assertCan } from "@/lib/permissions";
 import { getSchedule } from "@/lib/services/agenda";
 import { addDays, isISODate, todayISO, weekdayName, relativeDay, prettyDate } from "@/lib/dates";
 import { Icon } from "@/components/Icon";
@@ -42,16 +42,14 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       sub: `Tarea${t.assignee ? ` · ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " · hecha" : ""}`,
     })),
     ...s.deliveries.map((e) => ({ time: e.time, icon: "truck", title: `Entrega: ${e.title}`, sub: [e.detail, e.responsible && `Recibe ${e.responsible}`].filter(Boolean).join(" · ") })),
-    ...s.reservations.map((e) => ({ time: e.time, icon: "table", title: `Reserva ${e.people} personas`, sub: [e.title, e.detail].filter(Boolean).join(" · ") })),
-    ...s.takeaway.map((e) => ({ time: e.time, icon: "bag", title: e.title, sub: e.detail })),
   ].sort((a, b) => (a.time === "—" ? 1 : b.time === "—" ? -1 : a.time.localeCompare(b.time)));
 
   const days = Array.from({ length: 10 }, (_, i) => addDays(today, i - 1));
   const counts = [
     { label: "Personal", n: s.staff.filter((p) => !p.absent).length },
-    { label: "Reservas", n: s.reservations.length },
-    { label: "Comensales", n: s.reservations.reduce((a, r) => a + (r.people ?? 0), 0) },
-    { label: "Para llevar", n: s.takeaway.length },
+    { label: "Producción", n: s.production.length },
+    { label: "Entregas", n: s.deliveries.length },
+    { label: "Tareas", n: s.tasks.length },
   ];
 
   return (
@@ -76,24 +74,6 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           </div>
         ))}
       </div>
-      <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-        {can(user, "reservas") && (
-          <Link href={`/reservas?d=${date}`} className="btn small secondary">
-            Ver reservas
-          </Link>
-        )}
-        {(can(user, "takeaway") || can(user, "produccion")) && (
-          <Link href={`/pedidos?d=${date}`} className="btn small secondary">
-            Ver pedidos para llevar
-          </Link>
-        )}
-      </div>
-      {s.demand && (s.demand.covers > 0 || s.demand.takeawayPizzas > 0) && (
-        <div className={`card demand ${s.demand.extraKg > 0 ? "warn" : ""}`} style={{ marginBottom: 12 }}>
-          <div className="eyebrow">Demanda prevista</div>
-          <p style={{ margin: "4px 0 0" }}>{s.demand.message}</p>
-        </div>
-      )}
       {items.length === 0 ? (
         <p className="empty">Día libre: no hay nada cargado.</p>
       ) : (

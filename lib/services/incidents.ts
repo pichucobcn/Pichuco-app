@@ -22,7 +22,7 @@ export const absenceSchema = z.object({
   userName: z.string().optional().nullable(),
 });
 
-export type Conflict = { kind: "entrega" | "reserva" | "takeaway" | "tarea" | "evento"; time: string; title: string };
+export type Conflict = { kind: "entrega" | "tarea" | "evento"; time: string; title: string };
 
 async function resolveTarget(actor: Actor, userName?: string | null): Promise<User> {
   if (!userName) return actor;
@@ -41,7 +41,7 @@ async function findConflicts(userId: string, date: string, untilMin: number | nu
     db.agendaEvent.findMany({ where: { date: d, responsibleId: userId }, orderBy: { time: "asc" } }),
     db.task.findMany({ where: { date: d, assigneeId: userId, status: { not: "COMPLETADA" } }, orderBy: { dueTime: "asc" } }),
   ]);
-  const kindMap = { ENTREGA: "entrega", RESERVA: "reserva", TAKEAWAY: "takeaway", OTRO: "evento" } as const;
+  const kindMap = { ENTREGA: "entrega", OTRO: "evento" } as const;
   const out: Conflict[] = [];
   for (const e of events) {
     if (untilMin === null || hhmmToMinutes(e.time) < untilMin) out.push({ kind: kindMap[e.kind], time: e.time, title: e.title });
@@ -54,7 +54,7 @@ async function findConflicts(userId: string, date: string, untilMin: number | nu
 }
 
 function conflictText(c: Conflict) {
-  const k = { entrega: "Entrega", reserva: "Reserva", takeaway: "Pedido", tarea: "Tarea", evento: "Evento" }[c.kind];
+  const k = { entrega: "Entrega", tarea: "Tarea", evento: "Evento" }[c.kind];
   return `${k} ${c.time ? c.time + " — " : ""}${c.title}`;
 }
 

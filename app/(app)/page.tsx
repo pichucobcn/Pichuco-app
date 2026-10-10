@@ -6,7 +6,7 @@ import { unreadAnnouncements } from "@/lib/services/announcements";
 import { listTasks } from "@/lib/services/tasks";
 import { currentJourney } from "@/lib/services/clock";
 import { can } from "@/lib/permissions";
-import { todayISO, toDbDate } from "@/lib/dates";
+import { todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { unreadChats } from "@/lib/services/chat";
 import { Icon } from "@/components/Icon";
@@ -26,16 +26,6 @@ export default async function Home() {
   const comprasSub = toApprove ? `${toApprove} para aprobar` : toSend ? `${toSend} para enviar` : "Pedidos y proveedores";
   const mode = aiMode();
   const clockLabel = journey.state === "fuera" ? "Entrada / Salida" : journey.state === "en pausa" ? "En pausa" : "Trabajando";
-
-  const takeawayOpen =
-    can(user, "takeaway") || can(user, "produccion")
-      ? await db.takeawayOrder.count({ where: { date: toDbDate(todayISO()), status: { in: ["NUEVO", "CONFIRMADO", "EN_PREPARACION"] } } })
-      : 0;
-  const quick = [
-    can(user, "reservas") && { href: "/reservas", icon: "table", label: "Reservas", badge: g.schedule.reservations.length },
-    (can(user, "takeaway") || can(user, "produccion")) && { href: "/pedidos", icon: "bag", label: "Para llevar", badge: takeawayOpen },
-    can(user, "clientes") && { href: "/clientes", icon: "users", label: "Clientes", badge: 0 },
-  ].filter(Boolean) as { href: string; icon: string; label: string; badge: number }[];
 
   const modules = [
     { href: "/fichar", icon: "clock", title: "Fichar", sub: clockLabel, sub2: "Pausas", badge: 0 },
@@ -76,18 +66,6 @@ export default async function Home() {
           </Link>
         ))}
       </nav>
-
-      {quick.length > 0 && (
-        <nav className="quick-links" aria-label="Más secciones">
-          {quick.map((q) => (
-            <Link key={q.href} href={q.href} className="quick-link">
-              <Icon name={q.icon} size={18} />
-              {q.label}
-              {q.badge ? <span className="pill">{q.badge}</span> : null}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       <p className="tagline-foot">Hablale a Pichuco. Pichuco se encarga.</p>
     </main>

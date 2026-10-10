@@ -16,9 +16,6 @@ export const PERMISSIONS = [
   "comunicados_crear",
   "chat",
   "agenda",
-  "reservas",
-  "takeaway",
-  "clientes", // ver la ficha de clientes (datos personales)
   "stock",
   "compras", // crear y gestionar pedidos de compra
   "compras_aprobar", // aprobar pedidos que superan el límite automático
@@ -48,7 +45,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "ai",
   ],
   COCINERO: ["fichaje", "tareas_asignadas", "produccion", "agenda", "comunicados_ver", "chat", "ai"],
-  CAMARERA: ["fichaje", "tareas_asignadas", "reservas", "agenda", "comunicados_ver", "chat", "ai"],
+  CAMARERA: ["fichaje", "tareas_asignadas", "agenda", "comunicados_ver", "chat", "ai"],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

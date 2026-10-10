@@ -5,30 +5,14 @@ import type { Actor } from "./context";
 import { incidentsForDate } from "./incidents";
 import { listTasks } from "./tasks";
 import { shiftsForDate } from "./team";
-import { demandForecast } from "./demand";
-import { takeawaySummary, TK_STATUS_LABEL } from "./takeaway";
 
-/** Agenda cruzada de un día: personal, producción, tareas, entregas, reservas y pedidos. */
+/** Agenda cruzada de un día: personal, producción, tareas y entregas. */
 export async function getSchedule(actor: Actor, date: string) {
-  const seeReservations = can(actor, "reservas") || can(actor, "agenda");
-  const seeTakeaway = can(actor, "takeaway") || can(actor, "produccion");
-  const seeDemand = can(actor, "produccion") || can(actor, "takeaway");
-  const [shifts, incidents, tasks, events, reservations, orders, demand] = await Promise.all([
+  const [shifts, incidents, tasks, events] = await Promise.all([
     shiftsForDate(date),
     incidentsForDate(actor, date),
     listTasks(actor, { date }),
     db.agendaEvent.findMany({ where: { date: toDbDate(date) }, include: { responsible: true }, orderBy: { time: "asc" } }),
-    seeReservations
-      ? db.reservation.findMany({
-          where: { date: toDbDate(date), status: { in: ["CONFIRMADA", "SENTADA"] } },
-          include: { customer: { select: { name: true } } },
-          orderBy: { time: "asc" },
-        })
-      : Promise.resolve([]),
-    seeTakeaway
-      ? db.takeawayOrder.findMany({ where: { date: toDbDate(date), status: { not: "CANCELADO" } }, include: { lines: true }, orderBy: { time: "asc" } })
-      : Promise.resolve([]),
-    seeDemand ? demandForecast(date) : Promise.resolve(null),
   ]);
 
   const staff = shifts.map((s) => {
@@ -60,17 +44,6 @@ export async function getSchedule(actor: Actor, date: string) {
     production: tasks.filter((t) => t.kind === "PRODUCCION"),
     tasks: tasks.filter((t) => t.kind !== "PRODUCCION"),
     deliveries: ev("ENTREGA"),
-    // Sólo el nombre del cliente: teléfono y email quedan en Reservas/Clientes.
-    reservations: reservations.map((r) => ({ id: r.id, time: r.time, title: r.customer.name, people: r.people, detail: r.notes, responsible: null })),
-    takeaway: orders.map((o) => ({
-      id: o.id,
-      time: o.time,
-      title: `Pedido #${o.number}`,
-      people: null,
-      detail: `${takeawaySummary(o)} · ${TK_STATUS_LABEL[o.status]}${o.paymentStatus === "PAGADO" ? " · pagado" : ""}`,
-      responsible: null,
-    })),
-    demand,
     other: ev("OTRO"),
   };
 }
@@ -106,17 +79,6 @@ export function formatSchedule(s: Schedule): string {
     lines.push("", "ENTREGAS");
     for (const e of s.deliveries) lines.push(`• ${e.title} ${e.time}${e.responsible ? ` (recibe ${e.responsible})` : ""}`);
   }
-  if (s.reservations.length) {
-    lines.push("", "RESERVAS");
-    for (const e of s.reservations) lines.push(`• ${e.time} — ${e.people} personas${e.title ? ` (${e.title})` : ""}`);
-  }
-  if (s.takeaway.length) {
-    lines.push("", "PARA LLEVAR");
-    for (const e of s.takeaway) lines.push(`• ${e.time} — ${e.title}${e.detail ? `: ${e.detail}` : ""}`);
-  }
-  if (s.demand && (s.demand.covers || s.demand.takeawayPizzas)) {
-    lines.push("", "DEMANDA PREVISTA", s.demand.message);
-  }
   return lines.join("\n");
 }
 
@@ -127,10 +89,6 @@ export async function greeting(actor: Actor) {
   const h = currentHour();
   const hello = h < 13 ? "¡Buenos días" : h < 20 ? "¡Buenas tardes" : "¡Buenas noches";
   const bits: string[] = [];
-  if (can(actor, "reservas") || can(actor, "takeaway") || actor.role === "JEFE") {
-    if (s.reservations.length) bits.push(`${s.reservations.length} ${s.reservations.length === 1 ? "reserva" : "reservas"}`);
-  }
-  if (s.takeaway.length) bits.push(`${s.takeaway.length} ${s.takeaway.length === 1 ? "pedido" : "pedidos"} para llevar`);
   const prod = s.production.filter((t) => t.status !== "COMPLETADA");
   if (prod.length) bits.push(`${prod.length} ${prod.length === 1 ? "producción pendiente" : "producciones pendientes"}`);
   for (const d of s.deliveries) bits.push(`una entrega de ${d.title.replace(/^entrega( de)?\s*/i, "").toLowerCase()} a las ${d.time}`);
