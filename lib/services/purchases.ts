@@ -8,7 +8,8 @@ import type { Actor, ActionContext } from "./context";
 import { notify } from "./notifications";
 import { findProduct, fmtEur, fmtQty } from "./stock";
 import { findSupplier, nextDeliveryDate } from "./suppliers";
-import { areaManagers } from "./team";
+import { areaManagers, findUserByName } from "./team";
+import { formatPhone } from "../phone";
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   BORRADOR: "Borrador",
@@ -27,6 +28,7 @@ const include = {
   lines: { include: { product: true } },
   createdBy: { select: { shortName: true } },
   approvedBy: { select: { shortName: true } },
+  callBefore: { select: { id: true, shortName: true, phone: true } },
   events: { include: { user: { select: { shortName: true } } }, orderBy: { createdAt: "asc" as const } },
 } satisfies Prisma.PurchaseOrderInclude;
 
@@ -76,6 +78,45 @@ async function approvers(exceptId?: string) {
 
 async function addEvent(orderId: string, actor: Actor, text: string, ctx: ActionContext) {
   await db.purchaseOrderEvent.create({ data: { orderId, userId: actor.id, text, viaAi: !!ctx.viaAi } });
+}
+
+// ───────────── Contacto para la entrega
+
+/** Quién puede atender a los proveedores: jefe y cocina (Martín, Gian, Juan Pablo). */
+export async function deliveryContacts() {
+  return db.user.findMany({ where: { active: true, area: { in: ["ADMIN", "COCINA"] } }, orderBy: { createdAt: "asc" } });
+}
+
+async function resolveCallBefore(actor: Actor, id?: string | null, name?: string | null) {
+  const contacts = await deliveryContacts();
+  if (id) {
+    const u = contacts.find((c) => c.id === id);
+    if (!u) throw new ValidationError("Esa persona no puede figurar como contacto para la entrega.");
+    return u;
+  }
+  if (name) {
+    const u = await findUserByName(name);
+    if (!u || !contacts.some((c) => c.id === u.id)) throw new ValidationError(`"${name}" no puede figurar como contacto para la entrega.`);
+    return u;
+  }
+  // Por defecto, quien hace el pedido (si es de cocina o el jefe).
+  return contacts.find((c) => c.id === actor.id) ?? null;
+}
+
+export function callBeforeText(u?: { shortName: string; phone: string | null } | null) {
+  if (!u) return "";
+  return `Llamar antes a ${u.shortName}${u.phone ? ` (${formatPhone(u.phone)})` : ""}.`;
+}
+
+/** Cambiar a quién hay que llamar antes de la entrega. */
+export async function setCallBefore(actor: Actor, idOrNumber: string | number, userId: string | null, ctx: ActionContext = {}) {
+  assertCan(actor, "compras");
+  const o = await getOrder(actor, idOrNumber);
+  assertStatus(o, ["BORRADOR", "PENDIENTE_APROBACION", "APROBADO", "ENVIADO", "CONFIRMADO"], "cambiar el contacto");
+  const u = userId ? await resolveCallBefore(actor, userId) : null;
+  const updated = await db.purchaseOrder.update({ where: { id: o.id }, data: { callBeforeId: u?.id ?? null }, include });
+  await addEvent(o.id, actor, u ? `Contacto para la entrega: ${u.shortName}.` : "Quitó el contacto para la entrega.", ctx);
+  return updated;
 }
 
 // ───────────── Consultas
@@ -135,6 +176,7 @@ export function supplierMessage(o: OrderWithRelations) {
     `Queríamos hacerles el siguiente pedido (n.º ${o.number}):`,
     ...o.lines.map((l) => `- ${fmtQty(l.quantity, l.product.unit)} de ${l.product.name}`),
     `Entrega: ${when}.`,
+    callBeforeText(o.callBefore),
     o.notes ? `Nota: ${o.notes}` : "",
     "¿Nos confirman? ¡Gracias!",
   ]
@@ -173,6 +215,9 @@ export const orderInputSchema = z.object({
   deliveryDate: z.string().refine(isISODate, "Fecha YYYY-MM-DD").optional(),
   deliveryTime: z.string().refine(isHHMM, "Hora HH:MM").optional(),
   deliveryTimeTo: z.string().refine(isHHMM, "Hora HH:MM").optional(),
+  /** A quién llamar antes de la entrega (id o nombre). Por defecto, quien pide. */
+  callBeforeId: z.string().optional().nullable(),
+  callBeforeName: z.string().optional().nullable(),
   notes: z.string().max(500).optional(),
 });
 
@@ -206,6 +251,7 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
   if (!supplier) throw new NotFoundError("No encuentro el proveedor.");
 
   checkWindow(input.deliveryTime, input.deliveryTimeTo);
+  const callBefore = await resolveCallBefore(actor, input.callBeforeId, input.callBeforeName);
   const total = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
   const hasUnpriced = lines.some((l) => !l.unitPrice);
   const decision = await decideApproval(actor, total, [...new Set(lines.map((l) => l.product.category))], hasUnpriced);
@@ -225,6 +271,7 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
       deliveryTime: input.deliveryTime ?? supplier.deliveryTime ?? null,
       deliveryTimeTo: input.deliveryTime ? (input.deliveryTimeTo ?? null) : (input.deliveryTimeTo ?? supplier.deliveryTimeTo ?? null),
       notes: input.notes,
+      callBeforeId: callBefore?.id ?? null,
       createdById: actor.id,
       createdByAi: !!ctx.viaAi,
       approvedById: selfApproved ? actor.id : null,

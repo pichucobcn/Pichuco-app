@@ -73,7 +73,7 @@ async function call(actor: Actor, input: string, actions: AiAction[], tool: stri
 }
 
 export async function localAgent(actor: Actor, input: string): Promise<Reply> {
-  const t = input.toLowerCase().trim();
+  let t = input.toLowerCase().trim();
   const today = todayISO();
   const date = parseSpanishDate(t, today) ?? today;
   const actions: AiAction[] = [];
@@ -171,6 +171,10 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
 
   // 3) Compras: "Comprá 15 kilos de mozzarella", "Necesitamos 20 kg de harina para mañana"
   if (/\b(compr[aá]|comprar|ped[ií]|ped[ií]le|necesitamos|hace falta)(?![a-zñáéíóú])/.test(t) && /\d/.test(t)) {
+    // "…, que llamen antes a Juan Pablo"
+    const cbMatch = t.match(/,?\s*(?:que\s+)?llam(?:en|ar|e)\s+(?:antes\s+)?a\s+(martín|martin|gian|juan pablo)(?:\s+antes)?/);
+    const callBefore = cbMatch?.[1];
+    if (cbMatch) t = t.replace(cbMatch[0], "");
     const rest = stripDateWords(t.replace(/^.*?\b(compr[aá]r?|ped[ií](le)?( al proveedor)?|necesitamos|hace falta)(?![a-zñáéíóú])\s*/, ""));
     const m = rest.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|l|litros?|cajas?|unidades?|u|sacos?|botellas?|latas?|bandejas?)?\s*(?:de\s+)?(.+)$/);
     const product = m ? m[3].replace(/\s+(al|a|para)\s+.*$/, "").trim() : rest;
@@ -187,6 +191,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     const r = await call(actor, input, actions, "create_purchase_order", {
       items: [{ product, quantity }],
       delivery_date: parseSpanishDate(t, today) ?? undefined,
+      call_before: callBefore,
     });
     if (!r.ok) return { text: `No pude preparar el pedido: ${r.data.error}`, actions };
     const o = r.data;
@@ -198,7 +203,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
         ? "Supera el límite: necesita aprobación obligatoria de Martín desde la app. Ya le avisé."
         : "Necesita la aprobación de Martín. Ya le avisé.";
     return {
-      text: `Preparé el pedido #${o.number} a ${o.supplier}:\n\n• ${o.items}\n• Coste estimado: ${o.total === "Sin precio" ? "sin precio cargado" : o.total}\n• Entrega prevista: ${o.delivery ? relativeDay(o.delivery) + (o.deliveryWindow ? " " + o.deliveryWindow : "") : "a confirmar"}\n\n${state}`,
+      text: `Preparé el pedido #${o.number} a ${o.supplier}:\n\n• ${o.items}\n• Coste estimado: ${o.total === "Sin precio" ? "sin precio cargado" : o.total}\n• Entrega prevista: ${o.delivery ? relativeDay(o.delivery) + (o.deliveryWindow ? " " + o.deliveryWindow : "") : "a confirmar"}${o.callBefore ? `\n• Llamar antes a: ${o.callBefore}` : ""}\n\n${state}`,
       actions,
     };
   }

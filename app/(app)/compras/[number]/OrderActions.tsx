@@ -12,12 +12,14 @@ export function OrderActions({
   canApprove,
   mandatory,
   team,
+  contacts,
 }: {
-  order: { id: string; number: number; status: string; total: number; deliveryDate: string; deliveryTime: string; deliveryTimeTo: string; lines: Line[] };
+  order: { id: string; number: number; status: string; total: number; deliveryDate: string; deliveryTime: string; deliveryTimeTo: string; callBeforeId: string; lines: Line[] };
   links: { text: string; whatsapp: string | null; email: string | null; phone: string | null };
   canApprove: boolean;
   mandatory: boolean;
   team: { id: string; name: string }[];
+  contacts: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,8 @@ export function OrderActions({
   const [date, setDate] = useState(order.deliveryDate);
   const [time, setTime] = useState(order.deliveryTime || "10:00");
   const [timeTo, setTimeTo] = useState(order.deliveryTimeTo || "");
-  const [responsibleId, setResponsibleId] = useState("");
+  // Por defecto lo recibe quien figura como "llamar antes a".
+  const [responsibleId, setResponsibleId] = useState(order.callBeforeId);
   const [received, setReceived] = useState<Record<string, string>>(() => Object.fromEntries(order.lines.map((l) => [l.id, String(l.quantity)])));
   const [copied, setCopied] = useState(false);
 
@@ -73,6 +76,17 @@ export function OrderActions({
       {s === "APROBADO" && (
         <div className="card stack">
           <div className="eyebrow">Enviar al proveedor</div>
+          <div className="field">
+            <label htmlFor="cb-contact">Llamar antes a</label>
+            <select id="cb-contact" className="input" value={order.callBeforeId} disabled={busy} onChange={(e) => act("contact", { userId: e.target.value || null })}>
+              <option value="">Nadie</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <pre className="supplier-msg">{links.text}</pre>
           <div className="grid-2">
             {links.whatsapp && (

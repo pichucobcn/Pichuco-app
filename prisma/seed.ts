@@ -128,7 +128,7 @@ async function main() {
   const harina = await db.purchaseOrder.create({
     data: {
       supplierId: SUP["Cusiné"], status: "CONFIRMADO", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe. Aprobado por Martín.",
-      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", deliveryTimeTo: "19:00", createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
+      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", deliveryTimeTo: "19:00", callBeforeId: u["Juan Pablo"], createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
       lines: { create: [{ productId: PRD["Harina"], quantity: 100, unitPrice: 0 }, { productId: PRD["Sal"], quantity: 5, unitPrice: 0 }] },
       events: { create: [
         { userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." },
@@ -143,7 +143,7 @@ async function main() {
   await db.purchaseOrder.create({
     data: {
       supplierId: SUP["Crusat"], status: "PENDIENTE_APROBACION", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe.",
-      deliveryDate: toDbDate(addDays(today, 3)), deliveryTime: null, createdById: u.Gian,
+      deliveryDate: toDbDate(addDays(today, 3)), deliveryTime: null, callBeforeId: u.Gian, createdById: u.Gian,
       lines: { create: [{ productId: PRD["Coca-Cola"], quantity: 3, unitPrice: 0 }, { productId: PRD["Coca-Cola Zero"], quantity: 2, unitPrice: 0 }, { productId: PRD["Fanta naranja"], quantity: 1, unitPrice: 0 }] },
       events: { create: [{ userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." }] },
     },

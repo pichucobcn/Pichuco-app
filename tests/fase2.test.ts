@@ -4,7 +4,8 @@ import { execSync } from "node:child_process";
 import { db } from "../lib/db";
 import { localAgent } from "../lib/ai/local";
 import { executeTool } from "../lib/ai/tools";
-import { approveOrder, createOrder, decideApproval, markSent, receiveOrder, confirmOrder, getOrder, supplierMessage } from "../lib/services/purchases";
+import { approveOrder, createOrder, decideApproval, markSent, receiveOrder, confirmOrder, getOrder, supplierMessage, setCallBefore } from "../lib/services/purchases";
+import { updatePhone } from "../lib/services/team";
 import { createConversation, listMessages, sendMessage, getAttachment } from "../lib/services/chat";
 import { adjustStock, listProducts } from "../lib/services/stock";
 
@@ -132,4 +133,21 @@ test("chat: sólo los miembros leen la conversación y sus adjuntos", async () =
   const att = list.find((m) => m.id === msg.id)!.attachment!;
   await assert.rejects(getAttachment(jp, att.id), /acceso/);
   await assert.rejects(sendMessage(martin, c.id, { body: "" }, { name: "x.html", mime: "text/html", data: Buffer.from("<b>") }), /no permitido/);
+});
+
+test("llamar antes a: por defecto quien pide; elegible sólo jefe y cocina; sale en el mensaje", async () => {
+  const gian = await user("gian@pichuco.es");
+  const eva = await user("eva@pichuco.es");
+  const jp = await user("juanpablo@pichuco.es");
+  await updatePhone(gian, gian.id, "600 11 22 33");
+  await assert.rejects(updatePhone(gian, jp.id, "600000000"), /propio/);
+  const { order } = await createOrder(gian, { lines: [{ productName: "Brie", quantity: 2 }], deliveryTime: "10:00", deliveryTimeTo: "12:00" });
+  assert.equal(order.callBefore?.shortName, "Gian");
+  assert.match(supplierMessage(order), /Llamar antes a Gian \(600 11 22 33\)\./);
+  await assert.rejects(createOrder(gian, { lines: [{ productName: "Brie", quantity: 1 }], callBeforeId: eva.id }), /contacto/);
+  const changed = await setCallBefore(gian, order.number, jp.id);
+  assert.match(supplierMessage(changed), /Llamar antes a Juan Pablo\./);
+  const r = await localAgent(gian, "Comprá 2 kg de mascarpone, que llamen antes a Juan Pablo");
+  assert.match(r.text, /Llamar antes a: Juan Pablo/);
+  assert.match(r.text, /mascarpone/);
 });

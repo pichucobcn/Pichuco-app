@@ -8,6 +8,8 @@ import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { PageTitle } from "@/components/PageTitle";
 import { LogoutButton } from "./LogoutButton";
+import { PhoneEditor } from "./PhoneEditor";
+import { formatPhone } from "@/lib/phone";
 
 const PERM_LABEL: Record<string, string> = {
   fichaje: "Fichaje", fichajes_equipo: "Fichajes del equipo", personal: "Personal", tareas_todas: "Todas las tareas",
@@ -32,7 +34,18 @@ export default async function EquipoPage() {
               <Avatar name={m.name} color={m.avatarColor} size={46} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <b>{m.name}</b>
-                <div className="small muted">{m.roleLabel}</div>
+                <div className="small muted">
+                  {m.roleLabel}
+                  {m.phone ? (
+                    <>
+                      {" · "}
+                      <a href={`tel:${m.phone}`} style={{ textDecoration: "underline" }}>
+                        {formatPhone(m.phone)}
+                      </a>
+                    </>
+                  ) : null}
+                </div>
+                {can(user, "personal") && m.id !== user.id && <PhoneEditor userId={m.id} phone={m.phone} compact />}
                 <div className="row small" style={{ flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                   <span className="tag brown">{m.shift ? `Hoy ${m.shift.start}–${m.shift.end}` : "Libre hoy"}</span>
                   <span className={`tag ${m.status === "trabajando" ? "green" : m.status === "en pausa" ? "amber" : "brown"}`}>{m.status}</span>
@@ -61,6 +74,7 @@ export default async function EquipoPage() {
             </div>
           </div>
         </div>
+        <PhoneEditor userId={user.id} phone={user.phone} />
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           {ROLE_PERMISSIONS[user.role].map((p) => (
             <span key={p} className="tag brown">

@@ -1,7 +1,8 @@
 import type { Area, Role } from "@prisma/client";
 import { db } from "../db";
 import { fromDbDate, toDbDate } from "../dates";
-import { ROLE_LABEL } from "../permissions";
+import { can, ForbiddenError, ROLE_LABEL, ValidationError } from "../permissions";
+import { isValidPhone, normalizePhone } from "../phone";
 import type { Actor } from "./context";
 
 export async function listTeam() {
@@ -72,8 +73,17 @@ export async function teamOverview(_actor: Actor, date: string) {
       roleLabel: ROLE_LABEL[u.role],
       area: u.area,
       avatarColor: u.avatarColor,
+      phone: u.phone,
       shift: shift ? { start: shift.start, end: shift.end, date: fromDbDate(shift.date) } : null,
       status,
     };
   });
+}
+
+/** Teléfono de contacto: cada uno el suyo; quien gestiona personal, el de cualquiera. */
+export async function updatePhone(actor: Actor, userId: string, phone: string | null) {
+  if (userId !== actor.id && !can(actor, "personal")) throw new ForbiddenError("Sólo podés cambiar tu propio teléfono.");
+  const value = phone?.trim() ? normalizePhone(phone) : null;
+  if (value && !isValidPhone(value)) throw new ValidationError("Teléfono no válido.");
+  return db.user.update({ where: { id: userId }, data: { phone: value } });
 }

@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getOrder, getPolicy, orderTotalLabel, STATUS_FLOW, STATUS_LABEL, supplierLinks, windowText } from "@/lib/services/purchases";
+import { getOrder, getPolicy, orderTotalLabel, STATUS_FLOW, STATUS_LABEL, supplierLinks, windowText, deliveryContacts } from "@/lib/services/purchases";
 import { fmtEur, fmtQty } from "@/lib/services/stock";
 import { listTeam } from "@/lib/services/team";
+import { formatPhone } from "@/lib/phone";
 import { dateOf, fromDbDate, prettyDate, relativeDay, timeOf, todayISO, addDays } from "@/lib/dates";
 import { PageTitle } from "@/components/PageTitle";
 import { NoAccess } from "@/components/NoAccess";
@@ -25,7 +26,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
   if (!/^\d+$/.test(number)) notFound();
   const o = await getOrder(user, Number(number)).catch(() => null);
   if (!o) notFound();
-  const [policy, team] = await Promise.all([getPolicy(), listTeam()]);
+  const [policy, team, contacts] = await Promise.all([getPolicy(), listTeam(), deliveryContacts()]);
   const links = supplierLinks(o);
   const stepIdx = STATUS_FLOW.indexOf(o.status);
 
@@ -78,6 +79,10 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
             <span className="muted">Entrega: </span>
             {o.deliveryDate ? `${whenLabel(fromDbDate(o.deliveryDate))} ${windowText(o.deliveryTime, o.deliveryTimeTo)}` : "a confirmar"}
           </div>
+          <div>
+            <span className="muted">Llamar antes a: </span>
+            {o.callBefore ? `${o.callBefore.shortName}${o.callBefore.phone ? ` (${formatPhone(o.callBefore.phone)})` : " (sin teléfono cargado)"}` : "nadie"}
+          </div>
           {o.approvalNote && (
             <div>
               <span className="muted">Aprobación: </span>
@@ -103,12 +108,14 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
           deliveryDate: o.deliveryDate ? fromDbDate(o.deliveryDate) : addDays(todayISO(), 1),
           deliveryTime: o.deliveryTime ?? "",
           deliveryTimeTo: o.deliveryTimeTo ?? "",
+          callBeforeId: o.callBeforeId ?? "",
           lines: o.lines.map((l) => ({ id: l.id, name: l.product.name, unit: l.product.unit, quantity: l.quantity })),
         }}
         links={links}
         canApprove={can(user, "compras_aprobar")}
         mandatory={o.total > policy.managerLimit}
         team={team.map((u) => ({ id: u.id, name: u.shortName }))}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.shortName }))}
       />
 
       <div className="filete">

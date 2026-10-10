@@ -100,6 +100,7 @@ function orderView(o: OrderWithRelations) {
     delivery: o.deliveryDate ? fromDbDate(o.deliveryDate) : null,
     deliveryWindow: windowText(o.deliveryTime, o.deliveryTimeTo) || null,
     approvalNote: o.approvalNote,
+    callBefore: o.callBefore?.shortName ?? null,
     createdBy: o.createdBy.shortName,
   };
 }
@@ -437,6 +438,7 @@ export const TOOLS: Record<string, ToolDef> = {
       items: z.array(z.object({ product: z.string(), quantity: z.number().positive() })).min(1),
       supplier: z.string().optional(),
       delivery_date: optDate.optional(),
+      call_before: z.string().optional(),
       notes: z.string().optional(),
     }),
     input_schema: {
@@ -452,6 +454,7 @@ export const TOOLS: Record<string, ToolDef> = {
         },
         supplier: { type: "string", description: "Opcional; si no, el proveedor habitual del producto." },
         delivery_date: { ...dateProp, description: "Para cuándo se necesita (YYYY-MM-DD). Opcional: si no, el próximo día de reparto." },
+        call_before: { type: "string", description: "A quién debe llamar el proveedor antes de venir: Martín, Gian o Juan Pablo. Por defecto, quien pide." },
         notes: { type: "string" },
       },
       required: ["items"],
@@ -464,6 +467,7 @@ export const TOOLS: Record<string, ToolDef> = {
           supplierName: i.supplier,
           lines: i.items.map((x: { product: string; quantity: number }) => ({ productName: x.product, quantity: x.quantity })),
           deliveryDate: i.delivery_date,
+          callBeforeName: i.call_before,
           notes: i.notes,
         },
         ctx,

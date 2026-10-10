@@ -1,7 +1,7 @@
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { listSuppliers, nextDeliveryDate } from "@/lib/services/suppliers";
-import { getPolicy } from "@/lib/services/purchases";
+import { deliveryContacts, getPolicy } from "@/lib/services/purchases";
 import { suggestedQuantity } from "@/lib/services/stock";
 import { addDays, todayISO } from "@/lib/dates";
 import { PageTitle } from "@/components/PageTitle";
@@ -12,7 +12,7 @@ export default async function NuevoPedidoPage({ searchParams }: { searchParams: 
   const user = await requireUserPage();
   if (!can(user, "compras")) return <NoAccess title="Nuevo pedido" who="Gian y Martín" />;
   const sp = await searchParams;
-  const [suppliers, policy] = await Promise.all([listSuppliers(user), getPolicy()]);
+  const [suppliers, policy, contacts] = await Promise.all([listSuppliers(user), getPolicy(), deliveryContacts()]);
   const tomorrow = addDays(todayISO(), 1);
   return (
     <main>
@@ -36,6 +36,8 @@ export default async function NuevoPedidoPage({ searchParams }: { searchParams: 
             suggested: suggestedQuantity(p),
           })),
         }))}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.shortName, hasPhone: !!c.phone }))}
+        defaultContactId={contacts.some((c) => c.id === user.id) ? user.id : ""}
         initial={{ supplierId: sp.proveedor, productId: sp.producto, quantity: sp.cantidad ? Number(sp.cantidad) : undefined }}
         policy={{
           autoLimit: user.purchaseAutoLimit ?? policy.autoLimit,

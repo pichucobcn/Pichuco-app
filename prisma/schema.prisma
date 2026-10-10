@@ -30,6 +30,8 @@ model User {
   area        Area     @default(GENERAL)
   avatarColor String   @default("#351a17")
   active      Boolean  @default(true)
+  /// Teléfono de contacto (para que los proveedores avisen antes de venir)
+  phone       String?
   /// Límite propio de compra automática (€). Si es null se usa el general.
   purchaseAutoLimit Float?
   createdAt   DateTime @default(now())
@@ -52,6 +54,7 @@ model User {
   stockMovements    StockMovement[]
   createdOrders     PurchaseOrder[]    @relation("OrderCreator")
   approvedOrders    PurchaseOrder[]    @relation("OrderApprover")
+  callBeforeOrders  PurchaseOrder[]    @relation("OrderCallBefore")
   orderEvents       PurchaseOrderEvent[]
   chatMemberships   ConversationMember[]
   chatMessages      ChatMessage[]
@@ -360,6 +363,9 @@ model PurchaseOrder {
   /// Franja de entrega: "entre deliveryTime y deliveryTimeTo"
   deliveryTime  String?
   deliveryTimeTo String?
+  /// A quién tiene que llamar el proveedor antes de venir
+  callBeforeId  String?
+  callBefore    User?       @relation("OrderCallBefore", fields: [callBeforeId], references: [id])
   notes         String?
   createdById   String
   createdBy     User        @relation("OrderCreator", fields: [createdById], references: [id])

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { handle } from "@/lib/api";
 import { NotFoundError } from "@/lib/permissions";
-import { approveOrder, cancelOrder, confirmOrder, markSent, receiveOrder, rejectOrder } from "@/lib/services/purchases";
+import { approveOrder, cancelOrder, confirmOrder, markSent, receiveOrder, rejectOrder, setCallBefore } from "@/lib/services/purchases";
 
 /** Acciones sobre un pedido: approve, reject, send, confirm, receive, cancel. */
 export const POST = handle(async (req: Request, { params }: { params: Promise<{ id: string; action: string }> }) => {
@@ -25,6 +25,9 @@ export const POST = handle(async (req: Request, { params }: { params: Promise<{ 
       break;
     case "receive":
       await receiveOrder(user, id, body);
+      break;
+    case "contact":
+      await setCallBefore(user, id, z.object({ userId: z.string().nullable() }).parse(body).userId);
       break;
     case "cancel":
       await cancelOrder(user, id, reason);

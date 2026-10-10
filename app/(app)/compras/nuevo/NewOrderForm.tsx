@@ -13,8 +13,12 @@ export function NewOrderForm({
   suppliers,
   initial,
   policy,
+  contacts,
+  defaultContactId,
 }: {
   suppliers: Supplier[];
+  contacts: { id: string; name: string; hasPhone: boolean }[];
+  defaultContactId: string;
   initial: { supplierId?: string; productId?: string; quantity?: number };
   policy: { autoLimit: number; managerLimit: number; alwaysApprove: string[]; isApprover: boolean };
 }) {
@@ -28,6 +32,8 @@ export function NewOrderForm({
   const [time, setTime] = useState(supplier?.deliveryTime ?? "");
   const [timeTo, setTimeTo] = useState(supplier?.deliveryTimeTo ?? "");
   const [notes, setNotes] = useState("");
+  const [contactId, setContactId] = useState(defaultContactId);
+  const contact = contacts.find((c) => c.id === contactId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -77,6 +83,7 @@ export function NewOrderForm({
         deliveryTime: time || undefined,
         deliveryTimeTo: time && timeTo ? timeTo : undefined,
         notes: notes || undefined,
+        callBeforeId: contactId || null,
       });
       router.push(`/compras/${r.number}`);
       router.refresh();
@@ -112,6 +119,20 @@ export function NewOrderForm({
             <label htmlFor="o-to">y las</label>
             <input id="o-to" className="input" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
           </div>
+        </div>
+        <div className="field">
+          <label htmlFor="o-contact">Llamar antes a</label>
+          <select id="o-contact" className="input" value={contactId} onChange={(e) => setContactId(e.target.value)}>
+            <option value="">Nadie</option>
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {contact && !contact.hasPhone && (
+            <span className="small muted">{contact.name} no tiene teléfono cargado: se puede añadir en Equipo.</span>
+          )}
         </div>
       </div>
 
