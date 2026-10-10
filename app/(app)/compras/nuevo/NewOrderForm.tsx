@@ -46,14 +46,20 @@ export function NewOrderForm({
     [supplier, qty],
   );
   const total = lines.reduce((s, l) => s + l.q * l.p.price, 0);
+  const unpriced = lines.some((l) => !l.p.price);
   const sensitive = lines.some((l) => policy.alwaysApprove.map((c) => c.toLowerCase()).includes(l.p.category.toLowerCase()));
   const approval =
     total > policy.managerLimit
       ? { tone: "red", text: `Supera ${eur(policy.managerLimit)}: aprobación obligatoria de Martín desde la app.` }
-      : sensitive || total > policy.autoLimit
+      : unpriced || sensitive || total > policy.autoLimit
         ? policy.isApprover
           ? { tone: "green", text: "Lo aprobás vos al crearlo." }
-          : { tone: "amber", text: `Necesita aprobación de Martín (supera ${eur(policy.autoLimit)}${sensitive ? " o es una categoría sensible" : ""}).` }
+          : {
+              tone: "amber",
+              text: unpriced
+                ? "Hay productos sin precio cargado: lo tiene que aprobar Martín."
+                : `Necesita aprobación de Martín (supera ${eur(policy.autoLimit)}${sensitive ? " o es una categoría sensible" : ""}).`,
+            }
         : { tone: "green", text: `Se aprueba solo (no supera ${eur(policy.autoLimit)}).` };
 
   async function submit(e: React.FormEvent) {
@@ -116,7 +122,7 @@ export function NewOrderForm({
                     <b>{p.name}</b>
                     <div className="small muted">
                       Stock {fmt(p.stock)} {p.unit}
-                      {low && <span style={{ color: "var(--burgundy)", fontWeight: 600 }}> · bajo mínimo</span>} · {eur(p.price)}/{p.unit}
+                      {low && <span style={{ color: "var(--burgundy)", fontWeight: 600 }}> · bajo mínimo</span>} · {p.price ? `${eur(p.price)}/${p.unit}` : "sin precio"}
                     </div>
                     {low && !qty[p.id] && (
                       <button type="button" className="link-btn" onClick={() => setQty({ ...qty, [p.id]: String(p.suggested) })}>
@@ -150,7 +156,7 @@ export function NewOrderForm({
           <span className="eyebrow">Total estimado</span>
           <span className="spacer" />
           <b className="order-total" style={{ fontSize: 26 }}>
-            {eur(total)}
+            {lines.length && lines.every((l) => !l.p.price) ? "Sin precio" : unpriced ? `${eur(total)} + sin precio` : eur(total)}
           </b>
         </div>
         {lines.length > 0 && <span className={`tag ${approval.tone}`} style={{ whiteSpace: "normal" }}>{approval.text}</span>}

@@ -28,12 +28,13 @@ test("límite por persona: Gian con 200 € compra 150 € sin aprobación", asy
   await db.user.update({ where: { email: "gian@pichuco.es" }, data: { purchaseAutoLimit: null } });
 });
 
-test("Pichuco AI prepara el pedido de mozzarella y pide aprobación a Martín", async () => {
+test("Pichuco AI prepara el pedido de muzzarella al proveedor habitual; sin precio lo aprueba Martín", async () => {
   const gian = await user("gian@pichuco.es");
   const r = await localAgent(gian, "Comprá 15 kilos de mozzarella");
-  assert.match(r.text, /Lácteos del Montseny/);
-  assert.match(r.text, /€117,00/);
-  assert.match(r.text, /aprobación de Martín/);
+  assert.match(r.text, /Lácteos da Limia/);
+  assert.match(r.text, /15 kg de muzzarella rallada/);
+  assert.match(r.text, /sin precio/);
+  assert.match(r.text, /Martín/);
   const o = await db.purchaseOrder.findFirstOrThrow({ where: { createdById: gian.id, createdByAi: true }, orderBy: { number: "desc" } });
   assert.equal(o.status, "PENDIENTE_APROBACION");
   const martin = await user("martin@pichuco.es");
@@ -41,6 +42,15 @@ test("Pichuco AI prepara el pedido de mozzarella y pide aprobación a Martín", 
   // Martín lo aprueba hablando con Pichuco
   const a = await localAgent(martin, `Aprobá el pedido ${o.number}`);
   assert.match(a.text, /Aprobado/);
+});
+
+test("con precio cargado, un pedido chico se aprueba solo", async () => {
+  const gian = await user("gian@pichuco.es");
+  const p = await db.product.findFirstOrThrow({ where: { name: "Muzzarella rallada" } });
+  await db.product.update({ where: { id: p.id }, data: { usualPrice: 7.5, lastPrice: 7.5 } });
+  const r = await localAgent(gian, "Comprá 10 kilos de muzzarella");
+  assert.match(r.text, /€75,00/);
+  assert.match(r.text, /aprobado automáticamente/);
 });
 
 test("un cocinero no puede pedir: Pichuco se lo pasa a Gian", async () => {
@@ -54,7 +64,7 @@ test("un cocinero no puede pedir: Pichuco se lo pasa a Gian", async () => {
 test("Pichuco AI no puede aprobar compras por encima del límite del jefe", async () => {
   const gian = await user("gian@pichuco.es");
   const martin = await user("martin@pichuco.es");
-  const { order } = await createOrder(gian, { lines: [{ productName: "Malbec", quantity: 8 }] }); // 8 × 45 = 360 €
+  const { order } = await createOrder(gian, { lines: [{ productName: "Provolone", quantity: 30, unitPrice: 12 }] }); // 360 €
   assert.equal(order.status, "PENDIENTE_APROBACION");
   const viaAi = await executeTool(martin, "approve_purchase_order", { order_number: order.number }, { viaAi: true });
   assert.equal(viaAi.isError, true);
@@ -65,8 +75,8 @@ test("Pichuco AI no puede aprobar compras por encima del límite del jefe", asyn
 
 test("ciclo completo: enviar, confirmar (Agenda) y recibir suma al stock", async () => {
   const gian = await user("gian@pichuco.es");
-  const before = (await listProducts(gian)).find((p) => p.name === "Peceto (milanesas)")!;
-  const { order, approved } = await createOrder(gian, { lines: [{ productName: "peceto", quantity: 5 }] }); // 74,50 €
+  const before = (await listProducts(gian)).find((p) => p.name === "Bacon ahumado")!;
+  const { order, approved } = await createOrder(gian, { lines: [{ productName: "bacon", quantity: 5, unitPrice: 9 }] }); // 45 €
   assert.equal(approved, true);
   await markSent(gian, order.number, "WHATSAPP");
   await confirmOrder(gian, order.number, { deliveryDate: "2026-10-13", deliveryTime: "12:00" });
@@ -75,6 +85,7 @@ test("ciclo completo: enviar, confirmar (Agenda) y recibir suma al stock", async
   const after = await db.product.findUniqueOrThrow({ where: { id: before.id } });
   assert.equal(after.stock, before.stock + 4);
   assert.ok(await db.stockMovement.findFirst({ where: { productId: before.id, reason: "ENTRADA_PEDIDO", delta: 4 } }));
+  assert.equal(after.lastPrice, 9);
 });
 
 test("stock: Eva no puede ver ni tocar el stock", async () => {
@@ -84,10 +95,22 @@ test("stock: Eva no puede ver ni tocar el stock", async () => {
   await assert.rejects(adjustStock(eva, p.id, { delta: -1 }), /permiso/);
 });
 
-test("¿qué falta comprar? lista lo que está bajo mínimo", async () => {
+test("¿qué falta comprar? avisa lo que está bajo el mínimo", async () => {
   const gian = await user("gian@pichuco.es");
+  const harina = await db.product.findFirstOrThrow({ where: { name: "Harina" } });
+  await db.product.update({ where: { id: harina.id }, data: { stock: 20, minStock: 50 } });
   const r = await localAgent(gian, "¿Qué falta comprar?");
-  assert.match(r.text, /Harina 00/);
+  assert.match(r.text, /Harina: 20 kg/);
+  assert.match(r.text, /Cusiné/);
+});
+
+test("catálogo real cargado y recarga sin duplicar", async () => {
+  const { loadCatalog, CATALOG } = await import("../prisma/catalogo");
+  const total = CATALOG.reduce((s, c) => s + c.products.length, 0);
+  assert.equal(await db.product.count(), total);
+  await loadCatalog(db);
+  assert.equal(await db.product.count(), total);
+  assert.equal(await db.supplier.count(), CATALOG.length);
 });
 
 test("chat: sólo los miembros leen la conversación y sus adjuntos", async () => {

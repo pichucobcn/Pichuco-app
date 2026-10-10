@@ -57,12 +57,18 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
 
+      {products.some((p) => p.minStock <= 0 || p.lastPrice == null) && (
+        <p className="small" style={{ color: "var(--on-dark-muted)", margin: "0 0 10px" }}>
+          Faltan mínimos o precios en {products.filter((p) => p.minStock <= 0 || p.lastPrice == null).length} productos. Entrá en cada uno y tocá “Editar ficha”: con el mínimo, la app avisa cuando hay que pedir; con el precio, calcula el coste de los pedidos.
+        </p>
+      )}
       <NewProductForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} categories={categories} />
 
       <div className="stack" style={{ marginTop: 12 }}>
         {shown.map((p) => {
           const ratio = p.minStock > 0 ? Math.min(1, p.stock / (p.minStock * 2)) : 1;
-          const tone = isLow(p) ? "low" : p.stock < p.minStock * 1.3 ? "mid" : "ok";
+          const noMin = p.minStock <= 0;
+          const tone = noMin ? "none" : isLow(p) ? "low" : p.stock < p.minStock * 1.3 ? "mid" : "ok";
           return (
             <article key={p.id} className="card product">
               <div className="row" style={{ alignItems: "flex-start" }}>
@@ -76,13 +82,15 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                 </Link>
                 <div className="product-qty">
                   <span className={`qty ${tone}`}>{fmtQty(p.stock, p.unit)}</span>
-                  <span className="small muted">mín. {fmtQty(p.minStock, p.unit)}</span>
+                  <span className="small muted">{noMin ? "sin mínimo" : `mín. ${fmtQty(p.minStock, p.unit)}`}</span>
                 </div>
               </div>
-              <div className={`level ${tone}`} aria-hidden="true">
-                <i style={{ width: `${Math.max(4, ratio * 100)}%` }} />
-                <b style={{ left: "50%" }} />
-              </div>
+              {!noMin && (
+                <div className={`level ${tone}`} aria-hidden="true">
+                  <i style={{ width: `${Math.max(4, ratio * 100)}%` }} />
+                  <b style={{ left: "50%" }} />
+                </div>
+              )}
               <StockAdjust id={p.id} unit={p.unit} stock={p.stock} />
             </article>
           );

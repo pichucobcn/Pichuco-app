@@ -31,6 +31,10 @@ Estados: Borrador → Pendiente de aprobación → Aprobado → Enviado → Conf
 - Las reglas se editan en Compras → Reglas de aprobación.
 - El envío al proveedor abre WhatsApp o el correo con el pedido ya escrito (no hay integraciones automáticas todavía). Al confirmar el proveedor, la entrega aparece en la Agenda; al recibirla, se suma al stock y se guarda el último precio.
 
+### Catálogo de proveedores
+
+El catálogo real (Kimon, Ken Foods, Cusiné, Roysan, Crusat, Damm, Merkapizza, Caro Import y Lácteos da Limia, con sus productos) está en `prisma/catalogo.ts`. `npm run db:catalogo` lo carga sin borrar nada (crea lo que falta). Precios, stock y mínimos se completan desde Stock → producto → Editar ficha y Recuento. Un pedido con productos sin precio nunca se aprueba solo.
+
 ### Chat del equipo
 
 Conversaciones 1 a 1 y grupos, respuestas, fotos y archivos (hasta 5 MB, guardados en la base de datos). Los mensajes nuevos se consultan cada 4 segundos.

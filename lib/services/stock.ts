@@ -9,6 +9,8 @@ const normalize = (s: string) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
+    .replace(/mozzarella|mozarella|muzarella|muzza\b/g, "muzzarella")
+    .replace(/coca[\s-]?cola/g, "coca-cola")
     .trim();
 
 /** Cantidad legible: "4 kg", "12 u.", "2,5 l". */
@@ -103,6 +105,30 @@ export const productSchema = z.object({
   supplierId: z.string().optional().nullable(),
   usualPrice: z.number().min(0).optional().nullable(),
 });
+
+export const productUpdateSchema = productSchema.omit({ stock: true }).extend({
+  minStock: z.number().min(0),
+  usualPrice: z.number().min(0).optional().nullable(),
+});
+
+/** Editar ficha: nombre, categoría, unidad, mínimo, precio habitual y proveedor. */
+export async function updateProduct(actor: Actor, id: string, raw: z.input<typeof productUpdateSchema>, ctx: ActionContext = {}) {
+  assertCan(actor, "stock");
+  const input = productUpdateSchema.parse(raw);
+  const before = await db.product.findUnique({ where: { id } });
+  if (!before) throw new NotFoundError("Producto no encontrado.");
+  const p = await db.product.update({
+    where: { id },
+    data: {
+      ...input,
+      supplierId: input.supplierId || null,
+      // Si todavía no había último precio, el habitual sirve de referencia.
+      lastPrice: before.lastPrice ?? input.usualPrice ?? null,
+    },
+  });
+  await audit(actor, "product.update", `Producto actualizado: ${p.name} (mínimo ${fmtQty(p.minStock, p.unit)}${p.usualPrice != null ? `, precio ${fmtEur(p.usualPrice)}/${p.unit}` : ""})`, ctx, { productId: p.id });
+  return p;
+}
 
 export async function createProduct(actor: Actor, raw: z.input<typeof productSchema>, ctx: ActionContext = {}) {
   assertCan(actor, "stock");

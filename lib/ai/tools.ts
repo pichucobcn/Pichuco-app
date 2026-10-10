@@ -26,6 +26,7 @@ import {
   createOrder,
   listOrders,
   orderSummary,
+  orderTotalLabel,
   receiveOrder,
   STATUS_LABEL,
   type OrderWithRelations,
@@ -93,7 +94,7 @@ function orderView(o: OrderWithRelations) {
     number: o.number,
     supplier: o.supplier.name,
     status: STATUS_LABEL[o.status],
-    total: fmtEur(o.total),
+    total: orderTotalLabel(o),
     items: orderSummary(o),
     delivery: o.deliveryDate ? `${fromDbDate(o.deliveryDate)}${o.deliveryTime ? " " + o.deliveryTime : ""}` : null,
     approvalNote: o.approvalNote,
@@ -467,7 +468,7 @@ export const TOOLS: Record<string, ToolDef> = {
       );
       return {
         result: { ...orderView(r.order), approved: r.approved, approvalLevel: r.decision.level },
-        summary: `Preparó el pedido #${r.order.number} a ${r.order.supplier.name}: ${orderSummary(r.order)} — ${fmtEur(r.order.total)}. ${r.order.approvalNote}`,
+        summary: `Preparó el pedido #${r.order.number} a ${r.order.supplier.name}: ${orderSummary(r.order)} — ${orderTotalLabel(r.order)}. ${r.order.approvalNote}`,
       };
     },
   },
@@ -488,7 +489,7 @@ export const TOOLS: Record<string, ToolDef> = {
     mutates: true,
     run: async (actor, i, ctx) => {
       const o = await approveOrder(actor, i.order_number, ctx);
-      return { result: orderView(o), summary: `Aprobó el pedido #${o.number} (${fmtEur(o.total)})` };
+      return { result: orderView(o), summary: `Aprobó el pedido #${o.number} (${orderTotalLabel(o)})` };
     },
   },
   receive_purchase_order: {

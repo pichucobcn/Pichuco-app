@@ -6,6 +6,8 @@ import { dateOf, prettyDate, timeOf } from "@/lib/dates";
 import { PageTitle } from "@/components/PageTitle";
 import { NoAccess } from "@/components/NoAccess";
 import { StockAdjust } from "../StockAdjust";
+import { ProductEditForm } from "./ProductEditForm";
+import { db } from "@/lib/db";
 
 const REASON: Record<string, string> = { ENTRADA_PEDIDO: "Entrada de pedido", AJUSTE: "Ajuste", CONSUMO: "Consumo", MERMA: "Merma" };
 
@@ -13,6 +15,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const user = await requireUserPage();
   if (!can(user, "stock")) return <NoAccess title="Stock" who="Gian o Martín" />;
   const p = await getProduct(user, (await params).id);
+  const [suppliers, cats] = await Promise.all([
+    db.supplier.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.product.findMany({ where: { active: true }, select: { category: true }, distinct: ["category"] }),
+  ]);
   return (
     <main>
       <PageTitle title={p.name} back="/stock" />
@@ -23,7 +29,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <div className="l">Stock</div>
           </div>
           <div className="stat">
-            <div className="n">{fmtQty(p.minStock, p.unit)}</div>
+            <div className="n">{p.minStock > 0 ? fmtQty(p.minStock, p.unit) : "—"}</div>
             <div className="l">Mínimo</div>
           </div>
           <div className="stat">
@@ -43,6 +49,11 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           )}
         </div>
         <StockAdjust id={p.id} unit={p.unit} stock={p.stock} />
+        <ProductEditForm
+          product={{ id: p.id, name: p.name, category: p.category, unit: p.unit, minStock: p.minStock, usualPrice: p.usualPrice, supplierId: p.supplierId }}
+          suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
+          categories={cats.map((c) => c.category).sort()}
+        />
         {can(user, "compras") && p.supplierId && (
           <Link className="btn block" href={`/compras/nuevo?proveedor=${p.supplierId}&producto=${p.id}&cantidad=${suggestedQuantity(p) || 1}`}>
             Hacer pedido

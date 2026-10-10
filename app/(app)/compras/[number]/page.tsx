@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getOrder, getPolicy, STATUS_FLOW, STATUS_LABEL, supplierLinks } from "@/lib/services/purchases";
+import { getOrder, getPolicy, orderTotalLabel, STATUS_FLOW, STATUS_LABEL, supplierLinks } from "@/lib/services/purchases";
 import { fmtEur, fmtQty } from "@/lib/services/stock";
 import { listTeam } from "@/lib/services/team";
 import { dateOf, fromDbDate, prettyDate, relativeDay, timeOf, todayISO, addDays } from "@/lib/dates";
@@ -57,12 +57,10 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
               <tr key={l.id}>
                 <td>
                   <b>{l.product.name}</b>
-                  <div className="small muted">
-                    {fmtEur(l.unitPrice)}/{l.product.unit}
-                  </div>
+                  <div className="small muted">{l.unitPrice ? `${fmtEur(l.unitPrice)}/${l.product.unit}` : "sin precio"}</div>
                 </td>
                 <td style={{ textAlign: "right" }}>{fmtQty(l.quantity, l.product.unit)}</td>
-                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{fmtEur(l.quantity * l.unitPrice)}</td>
+                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{l.unitPrice ? fmtEur(l.quantity * l.unitPrice) : "—"}</td>
               </tr>
             ))}
             <tr>
@@ -70,7 +68,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
                 <span className="eyebrow">Total estimado</span>
               </td>
               <td style={{ textAlign: "right" }}>
-                <b className="order-total">{fmtEur(o.total)}</b>
+                <b className="order-total">{orderTotalLabel(o)}</b>
               </td>
             </tr>
           </tbody>

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { listOrders, orderSummary, STATUS_LABEL } from "@/lib/services/purchases";
-import { fmtEur } from "@/lib/services/stock";
+import { listOrders, orderSummary, orderTotalLabel, STATUS_LABEL } from "@/lib/services/purchases";
 import { PageTitle } from "@/components/PageTitle";
 import { NoAccess } from "@/components/NoAccess";
 import { Icon } from "@/components/Icon";
@@ -58,7 +57,7 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
               status: o.status,
               statusLabel: STATUS_LABEL[o.status],
               supplier: o.supplier.name,
-              total: fmtEur(o.total),
+              total: orderTotalLabel(o),
               items: orderSummary(o),
               deliveryDate: o.deliveryDate,
               deliveryTime: o.deliveryTime,

@@ -51,12 +51,16 @@ export type ApprovalDecision = { level: "AUTO" | "JEFE" | "OBLIGATORIA"; note: s
  *  - hasta el límite de jefe: lo aprueba el jefe (si lo pide el jefe, queda aprobado);
  *  - por encima, o en categorías sensibles: aprobación obligatoria desde la app.
  */
-export async function decideApproval(actor: Actor, total: number, categories: string[]): Promise<ApprovalDecision> {
+export async function decideApproval(actor: Actor, total: number, categories: string[], hasUnpriced = false): Promise<ApprovalDecision> {
   const policy = await getPolicy();
   const autoLimit = actor.purchaseAutoLimit ?? policy.autoLimit;
   const sensitive = categories.filter((c) => policy.alwaysApprove.map((x) => x.toLowerCase()).includes(c.toLowerCase()));
   if (total > policy.managerLimit) {
     return { level: "OBLIGATORIA", note: `Supera ${fmtEur(policy.managerLimit)}: aprobación obligatoria desde la app.` };
+  }
+  // Sin precio no se puede saber cuánto se gasta: nunca se aprueba solo.
+  if (hasUnpriced) {
+    return { level: "JEFE", note: "Hay productos sin precio cargado: requiere aprobación del jefe." };
   }
   if (sensitive.length) {
     return { level: "JEFE", note: `La categoría ${sensitive.join(", ")} siempre requiere aprobación.` };
@@ -89,6 +93,13 @@ export async function getOrder(actor: Actor, idOrNumber: string | number) {
   const o = await db.purchaseOrder.findUnique({ where, include });
   if (!o) throw new NotFoundError("Pedido no encontrado.");
   return o;
+}
+
+/** Total para mostrar: si algún producto no tiene precio, no hay total fiable. */
+export function orderTotalLabel(o: { total: number; lines: { unitPrice: number }[] }) {
+  const unpriced = o.lines.filter((l) => !l.unitPrice).length;
+  if (unpriced === o.lines.length) return "Sin precio";
+  return unpriced ? `${fmtEur(o.total)} + sin precio` : fmtEur(o.total);
 }
 
 export function orderTitle(o: { number: number; supplier: { name: string } }) {
@@ -177,7 +188,8 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
   if (!supplier) throw new NotFoundError("No encuentro el proveedor.");
 
   const total = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-  const decision = await decideApproval(actor, total, [...new Set(lines.map((l) => l.product.category))]);
+  const hasUnpriced = lines.some((l) => !l.unitPrice);
+  const decision = await decideApproval(actor, total, [...new Set(lines.map((l) => l.product.category))], hasUnpriced);
   // El jefe aprueba directamente sus propios pedidos dentro de su margen.
   const selfApproved = decision.level === "JEFE" && can(actor, "compras_aprobar");
   const approved = decision.level === "AUTO" || selfApproved;
@@ -202,8 +214,8 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
     include,
   });
 
-  await addEvent(order.id, actor, `Preparó el pedido (${fmtEur(total)}). ${order.approvalNote}`, ctx);
-  await audit(actor, "purchase.create", `${orderTitle(order)}: ${orderSummary(order)} — ${fmtEur(total)}. ${order.approvalNote}`, ctx, {
+  await addEvent(order.id, actor, `Preparó el pedido${hasUnpriced ? "" : ` (${fmtEur(total)})`}. ${order.approvalNote}`, ctx);
+  await audit(actor, "purchase.create", `${orderTitle(order)}: ${orderSummary(order)} — ${hasUnpriced ? "sin precio cargado" : fmtEur(total)}. ${order.approvalNote}`, ctx, {
     orderId: order.id,
   });
 
@@ -212,11 +224,11 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
     await notify(
       to.map((u) => u.id),
       decision.level === "OBLIGATORIA" ? "Compra para aprobar (obligatoria)" : "Compra para aprobar",
-      `${actor.shortName} pide ${orderSummary(order)} a ${supplier.name} — ${fmtEur(total)}.`,
+      `${actor.shortName} pide ${orderSummary(order)} a ${supplier.name} — ${hasUnpriced ? "sin precio cargado" : fmtEur(total)}.`,
       `/compras/${order.number}`,
     );
   }
-  return { order, decision, approved };
+  return { order, decision, approved, hasUnpriced };
 }
 
 // ───────────── Transiciones
@@ -327,7 +339,11 @@ export async function receiveOrder(actor: Actor, idOrNumber: string | number, ra
     if (qty !== l.quantity) diffs.push(`${l.product.name}: llegó ${fmtQty(qty, l.product.unit)} de ${fmtQty(l.quantity, l.product.unit)}`);
     const stockAfter = l.product.stock + qty;
     ops.push(
-      db.product.update({ where: { id: l.productId }, data: { stock: { increment: qty }, lastPrice: l.unitPrice } }),
+      db.product.update({
+        where: { id: l.productId },
+        // Un precio 0 significa "sin precio": no pisa el último precio conocido.
+        data: { stock: { increment: qty }, ...(l.unitPrice > 0 ? { lastPrice: l.unitPrice } : {}) },
+      }),
       db.stockMovement.create({
         data: { productId: l.productId, delta: qty, stockAfter, reason: "ENTRADA_PEDIDO", unitPrice: l.unitPrice, userId: actor.id, orderId: o.id },
       }),

@@ -4,6 +4,7 @@
  */
 import { PrismaClient, type Area, type Role } from "@prisma/client";
 import { addDays, toDbDate, todayISO } from "../lib/dates";
+import { loadCatalog } from "./catalogo";
 
 const db = new PrismaClient();
 
@@ -104,41 +105,20 @@ async function main() {
   // ── Fase 2: proveedores, stock y compras
   await db.purchasePolicy.create({ data: { id: "default", autoLimit: 100, managerLimit: 300, alwaysApprove: ["Equipamiento"] } });
 
-  const sup = async (data: Parameters<typeof db.supplier.create>[0]["data"]) => (await db.supplier.create({ data })).id;
-  const S = {
-    lacteos: await sup({ name: "Lácteos del Montseny", contactName: "Jordi", phone: "+34 600 111 222", whatsapp: "+34 600 111 222", email: "pedidos@lacteosmontseny.example", hours: "L–S 7:00–13:00", deliveryDays: [2, 4, 6], deliveryTime: "10:00", minOrder: 60, conditions: "Pago a 30 días.", channel: "WHATSAPP" }),
-    molino: await sup({ name: "Molí Fariner", contactName: "Montse", phone: "+34 600 333 444", whatsapp: "+34 600 333 444", email: "comandes@molifariner.example", hours: "L–V 8:00–15:00", deliveryDays: [0, 3, 5], deliveryTime: "18:15", minOrder: 80, conditions: "Sacos de 25 kg. Pago al contado.", channel: "WHATSAPP" }),
-    bebidas: await sup({ name: "Distribuciones Begudes BCN", contactName: "Raúl", phone: "+34 600 555 666", email: "pedidos@begudesbcn.example", hours: "L–V 9:00–18:00", deliveryDays: [1, 3, 6], deliveryTime: "19:00", minOrder: 150, conditions: "Devolución de envases vacíos.", channel: "EMAIL" }),
-    verdu: await sup({ name: "Verdures del Mercat", contactName: "Anna", phone: "+34 600 777 888", whatsapp: "+34 600 777 888", hours: "L–S 6:00–12:00", deliveryDays: [1, 2, 3, 4, 5, 6], deliveryTime: "11:00", conditions: "Precio según mercado.", channel: "WHATSAPP" }),
-    carnes: await sup({ name: "Carns Sants", contactName: "Pere", phone: "+34 600 999 000", whatsapp: "+34 600 999 000", email: "carns@carnssants.example", hours: "L–S 7:00–14:00", deliveryDays: [2, 5], deliveryTime: "12:00", minOrder: 50, channel: "WHATSAPP" }),
-  };
-  const prod = async (name: string, category: string, unit: string, stock: number, minStock: number, supplierId: string, price: number) =>
-    (await db.product.create({ data: { name, category, unit, stock, minStock, supplierId, usualPrice: price, lastPrice: price } })).id;
-  const P = {
-    mozza: await prod("Mozzarella", "Lácteos", "kg", 4, 10, S.lacteos, 7.8),
-    provo: await prod("Provolone", "Lácteos", "kg", 3, 2, S.lacteos, 12.5),
-    crema: await prod("Crema de leche", "Lácteos", "l", 6, 4, S.lacteos, 3.2),
-    harina: await prod("Harina 00", "Secos", "kg", 30, 50, S.molino, 0.95),
-    semola: await prod("Sémola", "Secos", "kg", 12, 5, S.molino, 1.4),
-    cerveza: await prod("Cerveza Quilmes (caja 24)", "Bebidas", "cajas", 3, 4, S.bebidas, 28),
-    agua: await prod("Agua mineral (caja 12)", "Bebidas", "cajas", 8, 4, S.bebidas, 6.5),
-    vino: await prod("Malbec (caja 6)", "Bebidas", "cajas", 5, 3, S.bebidas, 45),
-    tomate: await prod("Tomate triturado", "Verdura", "kg", 18, 10, S.verdu, 1.9),
-    cebolla: await prod("Cebolla", "Verdura", "kg", 9, 8, S.verdu, 1.2),
-    peceto: await prod("Peceto (milanesas)", "Carne", "kg", 2, 5, S.carnes, 14.9),
-    jamon: await prod("Jamón cocido", "Carne", "kg", 4, 2, S.carnes, 11.5),
-  };
+  // Catálogo real de proveedores y productos (sin precios ni stock todavía)
+  const { suppliers: SUP, products: PRD } = await loadCatalog(db);
 
   // Pedido entregado la semana pasada (historial)
   const lastWeek = addDays(today, -6);
   await db.purchaseOrder.create({
     data: {
-      supplierId: S.lacteos, status: "ENTREGADO", total: 78, approvalNote: "Aprobado automáticamente (no supera €100,00).",
-      deliveryDate: toDbDate(lastWeek), deliveryTime: "10:00", createdById: u.Gian, approvedAt: new Date(Date.now() - 7 * 864e5),
+      supplierId: SUP["Lácteos da Limia"], status: "ENTREGADO", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe. Aprobado por Martín.",
+      deliveryDate: toDbDate(lastWeek), deliveryTime: "10:00", createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(Date.now() - 7 * 864e5),
       sentAt: new Date(Date.now() - 7 * 864e5), sentVia: "WHATSAPP", confirmedAt: new Date(Date.now() - 7 * 864e5), deliveredAt: new Date(Date.now() - 6 * 864e5),
-      lines: { create: [{ productId: P.mozza, quantity: 10, unitPrice: 7.8 }] },
+      lines: { create: [{ productId: PRD["Muzzarella rallada"], quantity: 20, unitPrice: 0 }, { productId: PRD["Cuartirolo"], quantity: 3, unitPrice: 0 }] },
       events: { create: [
-        { userId: u.Gian, text: "Preparó el pedido (€78,00). Aprobado automáticamente (no supera €100,00)." },
+        { userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." },
+        { userId: u.Martín, text: "Aprobó el pedido." },
         { userId: u.Gian, text: "Envió el pedido al proveedor (whatsapp)." },
         { userId: u.Gian, text: "Recibió el pedido y lo sumó al stock." },
       ] },
@@ -147,27 +127,28 @@ async function main() {
   // Harina confirmada para mañana 18:15: la recibe Juan Pablo (aparece en Agenda)
   const harina = await db.purchaseOrder.create({
     data: {
-      supplierId: S.molino, status: "CONFIRMADO", total: 95, approvalNote: "Aprobado automáticamente (no supera €100,00).",
-      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", createdById: u.Gian, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
-      lines: { create: [{ productId: P.harina, quantity: 100, unitPrice: 0.95 }] },
+      supplierId: SUP["Cusiné"], status: "CONFIRMADO", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe. Aprobado por Martín.",
+      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
+      lines: { create: [{ productId: PRD["Harina"], quantity: 100, unitPrice: 0 }, { productId: PRD["Sal"], quantity: 5, unitPrice: 0 }] },
       events: { create: [
-        { userId: u.Gian, text: "Preparó el pedido (€95,00). Aprobado automáticamente (no supera €100,00)." },
+        { userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." },
+        { userId: u.Martín, text: "Aprobó el pedido." },
         { userId: u.Gian, text: "Envió el pedido al proveedor (whatsapp)." },
         { userId: u.Gian, text: "Proveedor confirmó. Entrega mañana 18:15." },
       ] },
     },
   });
-  await ev("ENTREGA", tomorrow, "18:15", "Harina", { responsibleId: u["Juan Pablo"], detail: "Molí Fariner — pedido #" + harina.number + ": 4 sacos de 25 kg", purchaseOrderId: harina.id });
-  // Bebidas pendiente de aprobación de Martín
+  await ev("ENTREGA", tomorrow, "18:15", "Harina", { responsibleId: u["Juan Pablo"], detail: "Cusiné — pedido #" + harina.number + ": 100 kg de harina, 5 kg de sal", purchaseOrderId: harina.id });
+  // Refrescos pendientes de aprobación de Martín
   await db.purchaseOrder.create({
     data: {
-      supplierId: S.bebidas, status: "PENDIENTE_APROBACION", total: 211, approvalNote: "Entre €100,00 y €300,00: requiere aprobación del jefe.",
-      deliveryDate: toDbDate(addDays(today, 3)), deliveryTime: "19:00", createdById: u.Gian,
-      lines: { create: [{ productId: P.cerveza, quantity: 5, unitPrice: 28 }, { productId: P.agua, quantity: 4, unitPrice: 6.5 }, { productId: P.vino, quantity: 1, unitPrice: 45 }] },
-      events: { create: [{ userId: u.Gian, text: "Preparó el pedido (€211,00). Entre €100,00 y €300,00: requiere aprobación del jefe." }] },
+      supplierId: SUP["Crusat"], status: "PENDIENTE_APROBACION", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe.",
+      deliveryDate: toDbDate(addDays(today, 3)), deliveryTime: null, createdById: u.Gian,
+      lines: { create: [{ productId: PRD["Coca-Cola"], quantity: 3, unitPrice: 0 }, { productId: PRD["Coca-Cola Zero"], quantity: 2, unitPrice: 0 }, { productId: PRD["Fanta naranja"], quantity: 1, unitPrice: 0 }] },
+      events: { create: [{ userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." }] },
     },
   });
-  await db.notification.create({ data: { userId: u.Martín, title: "Compra para aprobar", body: "Gian pide cerveza, agua y vino a Distribuciones Begudes BCN — €211,00.", link: "/compras" } });
+  await db.notification.create({ data: { userId: u.Martín, title: "Compra para aprobar", body: "Gian pide Coca-Cola, Coca-Cola Zero y Fanta a Crusat (sin precio cargado).", link: "/compras" } });
 
   // ── Fase 2: chat del equipo
   const minsAgo = (m: number) => new Date(Date.now() - m * 60_000);
@@ -306,7 +287,7 @@ async function main() {
   await cert(u["Juan Pablo"], addDays(today, -200), addDays(today, 530));
   await cert(u.Eva, addDays(today, -100), addDays(today, 630));
   await db.receptionCheck.create({
-    data: { supplierId: S.lacteos, supplierName: "Lácteos del Montseny", product: "Mozzarella 10 kg", temperature: 3, lot: "LM-2291", expiryDate: toDbDate(addDays(today, 18)), userId: u.Gian, at: at(addDays(today, -6), "10:05") },
+    data: { supplierId: SUP["Lácteos da Limia"], supplierName: "Lácteos da Limia", product: "Muzzarella rallada 20 kg", temperature: 3, lot: "LM-2291", expiryDate: toDbDate(addDays(today, 18)), userId: u.Gian, at: at(addDays(today, -6), "10:05") },
   });
 
   console.log(`Seed listo (${today}). Usuarios: ${USERS.map((x) => x.email).join(", ")}`);

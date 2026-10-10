@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:catalogo": "tsx prisma/cargar-catalogo.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts"
   },
