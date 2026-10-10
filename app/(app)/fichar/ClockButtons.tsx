@@ -40,7 +40,7 @@ export function ClockButtons({ allowed }: { allowed: string[] }) {
         ))}
       </div>
       <details className="card">
-        <summary>＋ Añadir incidencia al fichaje</summary>
+        <summary>+ Añadir una nota o incidencia</summary>
         <div className="field" style={{ marginTop: 10 }}>
           <input className="input" value={incident} onChange={(e) => setIncident(e.target.value)} placeholder="Ej.: me olvidé de fichar a las 18:00" maxLength={300} />
           <span className="small muted">Se guarda con tu próximo fichaje. Para retrasos o ausencias, contáselo a Pichuco AI.</span>

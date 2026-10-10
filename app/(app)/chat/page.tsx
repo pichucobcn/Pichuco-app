@@ -14,11 +14,11 @@ export default async function ChatPage() {
       <PageTitle title="Chat" />
       <div className="grid-2">
         <Link href="/pichuco" className="card" style={{ background: "var(--burgundy)", color: "var(--cream)" }}>
-          <b style={{ fontFamily: "var(--font-poster)", fontWeight: 400 }}>PICHUCO AI</b>
+          <b style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20 }}>Pichuco AI</b>
           <div className="small">Asistente operativo: tareas, retrasos, agenda.</div>
         </Link>
         <div className="card">
-          <b style={{ fontFamily: "var(--font-poster)", fontWeight: 400 }}>CHAT DEL EQUIPO</b>
+          <b style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20 }}>Chat del equipo</b>
           <div className="small muted">Conversaciones 1 a 1 y grupos, fotos y archivos. Llega en la Fase 2.</div>
         </div>
       </div>

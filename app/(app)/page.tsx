@@ -55,8 +55,8 @@ export default async function Home() {
               <Icon name={m.icon} />
             </div>
             <b>{m.title}</b>
-            <span>{m.sub}</span>
-            {m.sub2 && <span>{m.sub2}</span>}
+            <span className="sub">{m.sub}</span>
+            {m.sub2 && <span className="sub">{m.sub2}</span>}
           </Link>
         ))}
       </nav>

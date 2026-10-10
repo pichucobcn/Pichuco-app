@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/api";
+import { Icon } from "@/components/Icon";
 
 export function NewTaskForm({
   canProduce,
@@ -52,8 +53,8 @@ export function NewTaskForm({
 
   if (!open)
     return (
-      <button className="btn block secondary" onClick={() => setOpen(true)}>
-        ＋ Nueva {defaultKind === "PRODUCCION" ? "producción" : "tarea"}
+      <button className="btn add block" onClick={() => setOpen(true)}>
+        <Icon name="plus" size={18} /> Nueva {defaultKind === "PRODUCCION" ? "producción" : "tarea"}
       </button>
     );
 

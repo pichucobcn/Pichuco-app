@@ -78,7 +78,7 @@ export function LoginForm({ demo }: { demo: boolean }) {
           </p>
           {demoCode && (
             <p className="small" style={{ margin: 0 }}>
-              <span className="tag amber">Modo demo</span> Tu código es <b>{demoCode}</b>
+              <span className="tag amber">Demo</span> Tu código es <b>{demoCode}</b>
             </p>
           )}
           <div className="field">
@@ -96,9 +96,7 @@ export function LoginForm({ demo }: { demo: boolean }) {
       {error && <p className="error">{error}</p>}
       {demo && step === "email" && (
         <>
-          <p className="small muted" style={{ margin: "6px 0 0" }}>
-            Entrar como (datos de prueba):
-          </p>
+          <div className="divider">o entrá como (datos de prueba)</div>
           <div className="demo-users">
             {DEMO_USERS.map((u) => (
               <button key={u.email} type="button" onClick={() => requestCode(u.email)} disabled={busy}>

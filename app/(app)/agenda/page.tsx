@@ -67,11 +67,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       <div className="filete">
         <h2>{relativeDay(date) === prettyDate(date) ? prettyDate(date) : `${relativeDay(date)} · ${prettyDate(date)}`}</h2>
       </div>
-      <div className="grid-2" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
+      <div className="grid-2" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 14 }}>
         {counts.map((c) => (
-          <div key={c.label} className="card" style={{ padding: 10, textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-poster)", fontSize: 24, color: "var(--burgundy)" }}>{c.n}</div>
-            <div className="small muted">{c.label}</div>
+          <div key={c.label} className="card stat">
+            <div className="n">{c.n}</div>
+            <div className="l">{c.label}</div>
           </div>
         ))}
       </div>
@@ -82,7 +82,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           {items.map((it, i) => (
             <div key={i} className="tl-item">
               <span className="time">{it.time}</span>
-              <div className="card row" style={{ padding: 10, borderColor: it.tone === "red" ? "var(--burgundy)" : undefined }}>
+              <div className="card row" style={{ padding: "10px 12px", borderColor: it.tone === "red" ? "var(--burgundy)" : undefined, background: it.tone === "red" ? "#fff3ea" : undefined }}>
                 <span className="section-ico" aria-hidden="true">
                   {it.icon}
                 </span>
