@@ -68,7 +68,7 @@ public/brand/        logo y personaje (provisionales)
 
 ## Marca
 
-`public/brand/logo.svg` y `public/brand/pichuco.svg` son **provisionales**. Reemplazarlos por el logo oficial y la ilustración de Pichuco con el teléfono (mismo nombre de archivo, o cambiar la ruta en las páginas).
+En `public/brand/`: `logo.png` (rojo), `logo-crema.png` (cabecera sobre burdeos), `pichuco.png` (dibujo de Pichuco con el bandoneón), `pichuco-cara.png` (avatar de Pichuco AI) e `icon-192/512.png` (icono de la app). El dibujo es rojo sobre transparente: siempre va sobre fondo crema.
 
 ## Próximas fases
 
