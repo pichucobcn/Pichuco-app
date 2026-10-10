@@ -20,6 +20,8 @@ export const PERMISSIONS = [
   "compras", // crear y gestionar pedidos de compra
   "compras_aprobar", // aprobar pedidos que superan el límite automático
   "proveedores",
+  "sanidad", // registrar controles sanitarios (temperaturas, limpieza, etiquetas…)
+  "sanidad_gestion", // gestionar el plan: equipos, limpieza, alérgenos, formación, incidencias
   "configuracion",
   "auditoria",
   "ai",
@@ -35,6 +37,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "tareas_crear",
     "tareas_asignadas",
     "produccion",
+    "sanidad",
+    "sanidad_gestion",
     "stock",
     "compras",
     "proveedores",
@@ -44,8 +48,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "chat",
     "ai",
   ],
-  COCINERO: ["fichaje", "tareas_asignadas", "produccion", "agenda", "comunicados_ver", "chat", "ai"],
-  CAMARERA: ["fichaje", "tareas_asignadas", "agenda", "comunicados_ver", "chat", "ai"],
+  COCINERO: ["fichaje", "tareas_asignadas", "produccion", "sanidad", "agenda", "comunicados_ver", "chat", "ai"],
+  CAMARERA: ["fichaje", "tareas_asignadas", "sanidad", "agenda", "comunicados_ver", "chat", "ai"],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

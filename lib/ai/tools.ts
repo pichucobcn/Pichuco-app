@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { addDays, fromDbDate, isISODate, todayISO } from "../dates";
+import { addDays, fromDbDate, isISODate, todayISO, dateOf } from "../dates";
 import { can, ForbiddenError } from "../permissions";
 import { createAnnouncement } from "../services/announcements";
 import { formatSchedule, getPendingItems, getSchedule } from "../services/agenda";
@@ -12,6 +12,15 @@ import { completeTask, createTask, describeTask, listTasks, updateTask } from ".
 import { findUserByName, teamOverview } from "../services/team";
 import { findProduct, fmtEur, fmtQty, isLow, listProducts, lowStock, suggestedQuantity } from "../services/stock";
 import { findSupplier, DAY_SHORT } from "../services/suppliers";
+import {
+  allergenLabel,
+  createElaboration,
+  expiryState,
+  foodSafetyDashboard,
+  recordCleaning,
+  recordTemperature,
+  reportNonConformity,
+} from "../services/sanidad";
 import {
   approveOrder,
   createOrder,
@@ -490,6 +499,86 @@ export const TOOLS: Record<string, ToolDef> = {
     run: async (actor, i, ctx) => {
       const o = await receiveOrder(actor, i.order_number, {}, ctx);
       return { result: orderView(o), summary: `Registró la entrega del pedido #${o.number} y sumó al stock: ${orderSummary(o)}` };
+    },
+  },
+  register_temperature: {
+    description:
+      "Registra la temperatura de una cámara, congelador o nevera (control APPCC). Si está fuera de rango, se abre una incidencia y se avisa a los responsables; pedí la acción correctora si no la dijeron.",
+    schema: z.object({ equipment: z.string(), value: z.number(), corrective_action: z.string().optional() }),
+    input_schema: {
+      type: "object",
+      properties: {
+        equipment: { type: "string", description: "Nombre del equipo: 'cámara 1', 'congelador', 'nevera de bebidas', 'mesa fría'…" },
+        value: { type: "number", description: "Grados centígrados" },
+        corrective_action: { type: "string", description: "Qué se hizo si estaba fuera de rango" },
+      },
+      required: ["equipment", "value"],
+    },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const r = await recordTemperature(actor, { equipmentName: i.equipment, value: i.value, correctiveAction: i.corrective_action }, ctx);
+      return {
+        result: { equipment: r.equipment.name, value: i.value, range: r.range, outOfRange: r.outOfRange, incidentOpen: !!r.nc && r.nc.status === "ABIERTA" },
+        summary: `Registró ${r.equipment.name}: ${i.value} °C${r.outOfRange ? ` (fuera de rango ${r.range}, incidencia${r.nc?.status === "CERRADA" ? " con acción correctora" : " abierta"})` : ""}`,
+      };
+    },
+  },
+  register_cleaning: {
+    description: "Marca como hecha una limpieza del plan (campana, horno, cámaras, suelos, baños…).",
+    schema: z.object({ item: z.string(), notes: z.string().optional() }),
+    input_schema: { type: "object", properties: { item: { type: "string" }, notes: { type: "string" } }, required: ["item"] },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const r = await recordCleaning(actor, { itemName: i.item, notes: i.notes }, ctx);
+      return { result: { item: r.item.name, area: r.item.area }, summary: `Registró la limpieza de ${r.item.name}` };
+    },
+  },
+  register_elaboration: {
+    description: "Registra una elaboración propia (masa, salsa, milanesas…) para trazabilidad: asigna lote y calcula la caducidad para la etiqueta.",
+    schema: z.object({ product: z.string(), quantity: z.number().positive().optional(), unit: z.string().optional() }),
+    input_schema: {
+      type: "object",
+      properties: { product: { type: "string" }, quantity: { type: "number" }, unit: { type: "string" } },
+      required: ["product"],
+    },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const e = await createElaboration(actor, { typeName: i.product, name: i.product, quantity: i.quantity, unit: i.unit }, ctx);
+      return {
+        result: { id: e.id, name: e.name, lot: e.lot, expires: dateOf(e.expiresAt), allergens: e.allergens.map(allergenLabel), label: `/sanidad/etiquetas/${e.id}` },
+        summary: `Registró la elaboración ${e.name} (lote ${e.lot})`,
+      };
+    },
+  },
+  get_food_safety_status: {
+    description: "Estado de los controles sanitarios de hoy: temperaturas por tomar, limpiezas pendientes, elaboraciones por caducar e incidencias abiertas.",
+    schema: z.object({}),
+    input_schema: { type: "object", properties: {} },
+    mutates: false,
+    run: async (actor) => {
+      const d = await foodSafetyDashboard(actor);
+      return {
+        result: {
+          temperaturesPending: d.tempsPending.map((e) => ({ equipment: e.name, done: e.done, required: e.required })),
+          cleaningPending: d.cleaningDue.map((c) => ({ item: c.name, frequency: c.frequency })),
+          expiring: d.expiring.map((e) => ({ name: e.name, lot: e.lot, state: expiryState(e.expiresAt) })),
+          openIncidents: d.openNcs.map((n) => n.description),
+        },
+      };
+    },
+  },
+  report_food_incident: {
+    description: "Registra una incidencia sanitaria (no conformidad): algo que no está bien en higiene, temperaturas, mercancía, plagas…",
+    schema: z.object({ description: z.string(), corrective_action: z.string().optional() }),
+    input_schema: {
+      type: "object",
+      properties: { description: { type: "string" }, corrective_action: { type: "string" } },
+      required: ["description"],
+    },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const nc = await reportNonConformity(actor, { description: i.description, correctiveAction: i.corrective_action }, ctx);
+      return { result: { status: nc.status }, summary: `Registró la incidencia sanitaria: ${i.description}` };
     },
   },
   get_pending_items: {

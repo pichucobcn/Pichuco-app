@@ -6,6 +6,20 @@ Prototipo con:
 
 - **Fase 1**: login, usuarios y roles, Home, Pichuco AI (lenguaje natural → acciones), Fichar, Tareas, Producción, Comunicados, Agenda y Equipo.
 - **Fase 2**: Stock, Proveedores, Compras con reglas de aprobación y Chat del equipo.
+- **Sanidad (APPCC)**: controles alimentarios y sanitarios.
+
+### Sanidad (APPCC)
+
+- **Temperaturas** de cámaras, congelador, mesa fría y nevera de bebidas: lecturas de apertura y cierre, rango por equipo, historial de 7 días. Fuera de rango → incidencia y aviso a Gian y Martín (si se indica la acción correctora, queda cerrada).
+- **Limpieza y desinfección**: plan con frecuencia diaria, semanal o mensual, producto y método; se marca hecho con un toque.
+- **Etiquetas / trazabilidad**: cada elaboración (masa, salsa, milanesas…) recibe lote y caducidad según su vida útil, con sus alérgenos; etiqueta imprimible. Avisos de lo que caduca hoy o ya caducó.
+- **Recepción de mercancías**: temperatura, envase, etiquetado, lote y caducidad; rechazos generan incidencia.
+- **Alérgenos**: tabla de los 14 alérgenos obligatorios por plato (contiene / trazas), imprimible.
+- **Incidencias** con acción correctora, **control de plagas** y **formación de manipuladores** (con aviso de vencimiento).
+- **Informe para inspección** por período, imprimible o en CSV para Excel.
+- El "día de servicio" termina a las 05:00 (lo registrado a la 01:00 cuenta para el día anterior). Las lecturas de cierre y la limpieza diaria cuentan como pendientes desde las 21:00.
+- Pichuco AI: "La cámara 1 está a 3 grados", "Limpié la campana", "Hice 8 kg de masa", "¿Qué controles faltan?".
+- Permisos: todo el equipo registra controles; Gian y Martín gestionan el plan, cierran incidencias y sacan el informe.
 
 ### Compras y aprobaciones
 

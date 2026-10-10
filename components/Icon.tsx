@@ -19,6 +19,8 @@ const PATHS: Record<string, string> = {
   truck: "M3 6h11v10H3zM14 9h4l3 3v4h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
   table: "M3 9h18M5 9v11M19 9v11M8 9V5h8v4M8 14h8",
   bag: "M5 8h14l-1 12H6L5 8Zm4 0V6a3 3 0 0 1 6 0v2",
+  shield: "M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3Zm-3.5 9l2.5 2.5 4.5-5",
+  thermo: "M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0Zm2 3v-6",
   spark: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z",
 };
 

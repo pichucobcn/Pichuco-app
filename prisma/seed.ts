@@ -27,6 +27,17 @@ async function main() {
   const tomorrow = addDays(today, 1);
 
   await db.$transaction([
+    db.nonConformity.deleteMany(),
+    db.temperatureLog.deleteMany(),
+    db.foodEquipment.deleteMany(),
+    db.receptionCheck.deleteMany(),
+    db.cleaningLog.deleteMany(),
+    db.cleaningItem.deleteMany(),
+    db.elaboration.deleteMany(),
+    db.elaborationType.deleteMany(),
+    db.dish.deleteMany(),
+    db.pestControlVisit.deleteMany(),
+    db.trainingCert.deleteMany(),
     db.conversation.deleteMany(),
     db.stockMovement.deleteMany(),
     db.purchaseOrder.deleteMany(),
@@ -187,6 +198,116 @@ async function main() {
     ["Martín", "Sí, sin problema. Cobramos servicio de torta de 2€ por persona.", 55],
     ["Eva", "Perfecto, les aviso.", 20],
   ]);
+
+  // ── Controles sanitarios (APPCC)
+  const at = (day: string, hhmm: string) => {
+    // hora local de Barcelona (CEST, UTC+2) aproximada para los datos de prueba
+    const [h, m] = hhmm.split(":").map(Number);
+    return new Date(toDbDate(day).getTime() + ((h - 2 + 24) % 24) * 3_600_000 + m * 60_000 + (h < 2 ? 86_400_000 : 0));
+  };
+  const yesterday = addDays(today, -1);
+  const eq = async (name: string, kind: string, minTemp: number, maxTemp: number, sort: number, area = "COCINA") =>
+    (await db.foodEquipment.create({ data: { name, kind, minTemp, maxTemp, sort, area } })).id;
+  const E = {
+    camara1: await eq("Cámara 1 (lácteos y masas)", "REFRIGERACION", 0, 4, 1),
+    camara2: await eq("Cámara 2 (carnes y verduras)", "REFRIGERACION", 0, 4, 2),
+    congelador: await eq("Congelador", "CONGELACION", -25, -18, 3),
+    mesa: await eq("Mesa fría de pizzas", "REFRIGERACION", 0, 5, 4),
+    bebidas: await eq("Nevera de bebidas", "REFRIGERACION", 1, 8, 5, "SALA"),
+  };
+  const temp = (equipmentId: string, value: number, when: Date, userId: string, outOfRange = false, correctiveAction?: string) =>
+    db.temperatureLog.create({ data: { equipmentId, value, at: when, userId, outOfRange, correctiveAction } });
+  // Ayer: todo completo, con una lectura fuera de rango resuelta
+  for (const [id, a, b] of [[E.camara1, 3, 3.5], [E.camara2, 2.5, 3], [E.congelador, -20, -19], [E.mesa, 4, 4.5]] as const) {
+    await temp(id, a, at(yesterday, "17:40"), u.Gian);
+    await temp(id, b, at(yesterday, "23:50"), u["Juan Pablo"]);
+  }
+  await temp(E.bebidas, 9.5, at(yesterday, "19:10"), u.Eva, true, "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 6 °C.");
+  await temp(E.bebidas, 6, at(yesterday, "19:40"), u.Eva);
+  await db.nonConformity.create({
+    data: {
+      source: "TEMPERATURA", description: "Nevera de bebidas a 9,5 °C (rango 1 a 8 °C).", status: "CERRADA",
+      correctiveAction: "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 6 °C.", createdById: u.Eva, closedById: u.Eva,
+      closedAt: at(yesterday, "19:40"), createdAt: at(yesterday, "19:10"),
+    },
+  });
+  // Semana anterior, para el historial
+  for (let i = 2; i <= 6; i++) {
+    const d = addDays(today, -i);
+    if (new Date(d + "T00:00:00Z").getUTCDay() === 1) continue;
+    for (const id of [E.camara1, E.camara2, E.mesa]) await temp(id, 2 + (i % 3) * 0.5, at(d, "17:45"), u.Gian);
+    await temp(E.congelador, -20, at(d, "17:45"), u.Gian);
+  }
+  // Hoy: sólo una lectura de apertura en la cámara 1
+  await temp(E.camara1, 3, at(today, "07:30"), u.Gian);
+
+  const ci = async (name: string, area: string, frequency: string, method: string, sort: number) =>
+    (await db.cleaningItem.create({ data: { name, area, frequency, method, sort } })).id;
+  const L = {
+    superficies: await ci("Superficies y mesas de trabajo", "Cocina", "DIARIA", "Detergente, aclarar y desinfectante alimentario", 1),
+    suelos: await ci("Suelos de cocina", "Cocina", "DIARIA", "Fregona con detergente desengrasante", 2),
+    horno: await ci("Horno de pizza (boca y piso)", "Cocina", "DIARIA", "Cepillo de horno en caliente; boca con paño húmedo", 3),
+    tablas: await ci("Tablas y utensilios", "Cocina", "DIARIA", "Lavavajillas a 82 °C", 4),
+    banos: await ci("Baños", "Sala", "DIARIA", "Desinfectante clorado", 5),
+    campana: await ci("Campana extractora y filtros", "Cocina", "SEMANAL", "Filtros en lavavajillas; campana con desengrasante", 6),
+    camaras: await ci("Interior de cámaras", "Cocina", "SEMANAL", "Vaciar por baldas, agua jabonosa y desinfectante", 7),
+    almacen: await ci("Almacén y estanterías", "Almacén", "MENSUAL", "Retirar producto, barrer, fregar y desinfectar", 8),
+  };
+  for (const id of [L.superficies, L.suelos, L.horno, L.tablas]) await db.cleaningLog.create({ data: { itemId: id, userId: u["Juan Pablo"], at: at(yesterday, "23:55") } });
+  await db.cleaningLog.create({ data: { itemId: L.banos, userId: u.Eva, at: at(yesterday, "23:40") } });
+  await db.cleaningLog.create({ data: { itemId: L.campana, userId: u.Gian, at: at(addDays(today, -9), "23:30") } });
+  await db.cleaningLog.create({ data: { itemId: L.camaras, userId: u.Gian, at: at(addDays(today, -3), "18:00") } });
+  await db.cleaningLog.create({ data: { itemId: L.almacen, userId: u.Martín, at: at(addDays(today, -12), "12:00") } });
+
+  const et = async (name: string, shelfLifeDays: number, storage: string, allergens: string[], unit = "kg") =>
+    (await db.elaborationType.create({ data: { name, shelfLifeDays, storage, allergens, unit } })).id;
+  const T = {
+    masa: await et("Masa de pizza", 3, "REFRIGERADO", ["gluten"]),
+    salsa: await et("Salsa de tomate", 4, "REFRIGERADO", [], "l"),
+    milanesas: await et("Milanesas empanadas", 2, "REFRIGERADO", ["gluten", "huevos", "lacteos"], "u."),
+    cebolla: await et("Cebolla caramelizada", 4, "REFRIGERADO", []),
+    chimi: await et("Chimichurri", 5, "REFRIGERADO", ["sulfitos"], "l"),
+    faina: await et("Mezcla de fainá", 2, "REFRIGERADO", []),
+  };
+  const elab = (typeId: string, name: string, lot: string, madeDay: string, days: number, allergens: string[], quantity: number, unit: string, userId: string) =>
+    db.elaboration.create({
+      data: { typeId, name, lot, madeAt: at(madeDay, "18:20"), expiresAt: new Date(toDbDate(addDays(madeDay, days)).getTime() + 21 * 3_600_000), storage: "REFRIGERADO", allergens, quantity, unit, userId },
+    });
+  const lotOf = (d: string, n: number) => `${d.slice(2).replace(/-/g, "")}-${String(n).padStart(2, "0")}`;
+  await elab(T.masa, "Masa de pizza", lotOf(addDays(today, -3), 1), addDays(today, -3), 3, ["gluten"], 8, "kg", u.Gian); // caduca hoy
+  await elab(T.salsa, "Salsa de tomate", lotOf(addDays(today, -5), 1), addDays(today, -5), 4, [], 5, "l", u["Juan Pablo"]); // caducada
+  await elab(T.masa, "Masa de pizza", lotOf(yesterday, 1), yesterday, 3, ["gluten"], 10, "kg", u.Gian);
+  await elab(T.cebolla, "Cebolla caramelizada", lotOf(yesterday, 2), yesterday, 4, [], 2, "kg", u["Juan Pablo"]);
+  await elab(T.chimi, "Chimichurri", lotOf(addDays(today, -2), 1), addDays(today, -2), 5, ["sulfitos"], 1, "l", u.Gian);
+
+  const dishes: [string, string, string[], string[]][] = [
+    ["Muzza", "Pizzas", ["gluten", "lacteos"], []],
+    ["Fugazzeta", "Pizzas", ["gluten", "lacteos"], []],
+    ["Napolitana", "Pizzas", ["gluten", "lacteos"], []],
+    ["Calabresa", "Pizzas", ["gluten", "lacteos"], ["mostaza"]],
+    ["Jamón y morrones", "Pizzas", ["gluten", "lacteos"], ["sulfitos"]],
+    ["Anchoas", "Pizzas", ["gluten", "lacteos", "pescado"], []],
+    ["Fainá", "Para acompañar", [], ["gluten"]],
+    ["Empanada de carne", "Empanadas", ["gluten", "huevos"], []],
+    ["Empanada de jamón y queso", "Empanadas", ["gluten", "lacteos"], []],
+    ["Milanesa napolitana", "Platos", ["gluten", "huevos", "lacteos"], []],
+    ["Flan con dulce de leche", "Postres", ["huevos", "lacteos"], []],
+    ["Panqueque con dulce de leche", "Postres", ["gluten", "huevos", "lacteos"], []],
+  ];
+  for (const [i, [name, category, allergens, traces]] of dishes.entries()) await db.dish.create({ data: { name, category, allergens, traces, sort: i } });
+
+  await db.pestControlVisit.create({
+    data: { date: toDbDate(addDays(today, -40)), company: "Plagas BCN Control", kind: "REVISION", notes: "Sin actividad. Cebos revisados.", nextVisit: toDbDate(addDays(today, 50)), userId: u.Martín },
+  });
+  const cert = (userId: string, issued: string, expires: string | null) =>
+    db.trainingCert.create({ data: { userId, title: "Manipulador de alimentos", provider: "Formación Hostelería BCN", issuedAt: toDbDate(issued), expiresAt: expires ? toDbDate(expires) : null } });
+  await cert(u.Martín, addDays(today, -400), addDays(today, 330));
+  await cert(u.Gian, addDays(today, -700), addDays(today, 30)); // vence pronto
+  await cert(u["Juan Pablo"], addDays(today, -200), addDays(today, 530));
+  await cert(u.Eva, addDays(today, -100), addDays(today, 630));
+  await db.receptionCheck.create({
+    data: { supplierId: S.lacteos, supplierName: "Lácteos del Montseny", product: "Mozzarella 10 kg", temperature: 3, lot: "LM-2291", expiryDate: toDbDate(addDays(today, 18)), userId: u.Gian, at: at(addDays(today, -6), "10:05") },
+  });
 
   console.log(`Seed listo (${today}). Usuarios: ${USERS.map((x) => x.email).join(", ")}`);
 }

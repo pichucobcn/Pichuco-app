@@ -196,7 +196,8 @@ main > .composer { position: sticky; bottom: calc(84px + env(safe-area-inset-bot
   box-shadow: inset 0 0 0 1px var(--line), inset 0 0 0 5px var(--warm-white), inset 0 0 0 6px rgba(134, 40, 32, 0.16), var(--shadow);
   transition: transform 0.1s, box-shadow 0.15s;
 }
-.module:nth-child(4), .module:nth-child(5) { grid-column: span 3; }
+/* 5 accesos: 3 + 2; con Sanidad son 6: 3 + 3 */
+.module:nth-child(4):nth-last-child(2), .module:nth-child(5):last-child { grid-column: span 3; }
 .module:active { transform: scale(0.97); }
 .module .ico {
   width: 48px; height: 48px; margin: 0 auto 8px; border-radius: 50%; display: grid; place-items: center;
@@ -517,3 +518,63 @@ table.simple th { font-family: var(--font-label); font-weight: 500; font-size: 1
 .send.attach { background: var(--cream-2); color: var(--burgundy); box-shadow: inset 0 0 0 1px var(--line); }
 .card-empty { color: var(--brown-soft); }
 :is(.card, .ai-hero, .poster) .btn.ghost, :is(.card, .ai-hero, .poster) .btn.ghost:hover { background: transparent; color: var(--brown-soft); box-shadow: none; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ══ Sanidad ══════════════════════════════════════════════ */
+.health-hero { box-shadow: inset 0 0 0 1.5px var(--amber), var(--shadow); }
+.health-hero.ok { box-shadow: inset 0 0 0 1.5px var(--green), var(--shadow); }
+.health-big { font-family: var(--font-display); font-size: 28px; line-height: 1.1; color: var(--burgundy); margin: 6px 0 12px; }
+.health-hero.ok .health-big { color: var(--green); }
+.health-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.health-grid a { display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: var(--cream); box-shadow: inset 0 0 0 1px var(--line); text-align: center; }
+.health-grid b { font-family: var(--font-display); font-weight: 400; font-size: 22px; line-height: 1.1; }
+.health-grid span { font-family: var(--font-label); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brown-soft); line-height: 1.2; }
+.health-grid .ok b { color: var(--green); }
+.health-grid .warn b { color: var(--amber); }
+.health-grid .bad { box-shadow: inset 0 0 0 1.5px var(--burgundy); }
+.health-grid .bad b { color: var(--burgundy); }
+.temp-input { font-family: var(--font-display); font-size: 22px; text-align: center; max-width: 140px; }
+.label-card.caducado { box-shadow: inset 4px 0 0 var(--burgundy), var(--shadow); }
+.label-card.hoy, .label-card.mañana { box-shadow: inset 4px 0 0 var(--amber), var(--shadow); }
+.nc-card.ABIERTA { box-shadow: inset 4px 0 0 var(--burgundy), var(--shadow); }
+.day-chip.trace { background: var(--cream-2); color: var(--burgundy); box-shadow: inset 0 0 0 1.5px var(--burgundy); }
+
+/* Etiqueta imprimible */
+.print-label { background: #fff; color: #111; border-radius: 12px; padding: 16px; border: 2px dashed rgba(0, 0, 0, 0.35); max-width: 380px; margin: 0 auto; }
+.pl-brand { font-family: var(--font-label); font-size: 11px; letter-spacing: 0.14em; color: var(--burgundy); }
+.pl-name { font-family: var(--font-display); font-size: 30px; line-height: 1.05; margin: 4px 0 2px; }
+.pl-qty { font-weight: 700; font-size: 16px; }
+.pl-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-top: 10px; font-size: 14px; }
+.pl-grid span { color: #555; }
+.pl-exp { font-size: 20px; color: var(--burgundy); }
+
+/* Tabla de alérgenos */
+.allergen-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.allergen-table th { font-family: var(--font-label); font-weight: 500; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--brown-soft); vertical-align: bottom; padding: 4px 2px; border-bottom: 1px solid var(--line-strong); }
+.allergen-table th:first-child { text-align: left; }
+.allergen-table .vert { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; display: inline-block; max-height: 120px; }
+.allergen-table td { border-bottom: 1px solid var(--line); padding: 6px 2px; }
+.allergen-table .dish-name { font-weight: 600; white-space: nowrap; padding-right: 8px; }
+.allergen-table .alg-cell { text-align: center; width: 26px; }
+.alg.yes { color: var(--burgundy); font-size: 16px; }
+.alg.trace { color: var(--amber); font-size: 15px; }
+.allergen-table .cat-row td { font-family: var(--font-display); font-size: 16px; color: var(--burgundy); padding-top: 12px; border-bottom: 0; }
+.report-h { font-family: var(--font-label); font-weight: 500; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--burgundy); margin: 18px 0 6px; }
+.report-sheet table.simple { font-size: 12.5px; }
+.print-only { display: none; }
+
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff !important; color: #111 !important; }
+  .topbar, .bottom-nav, .no-print, .tabs { display: none !important; }
+  .print-only { display: block; }
+  .shell { max-width: none; padding: 0; }
+  .card, .report-sheet, .allergen-sheet { box-shadow: none !important; border: 0; background: #fff; padding: 0; }
+  .print-label { border: 1px solid #000; margin: 0; }
+  .allergen-table .vert { max-height: none; }
+}
+.allergen-scroll { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+.allergen-table .dish-name { position: sticky; left: -16px; background: var(--warm-white); white-space: normal; min-width: 120px; max-width: 150px; line-height: 1.25; z-index: 1; box-shadow: 6px 0 8px -6px rgba(53, 26, 23, 0.2); }
+.allergen-table thead th:first-child { position: sticky; left: -16px; background: var(--warm-white); z-index: 1; }
+.allergen-table .cat-row td { position: sticky; left: -16px; }
+.temp-input { flex: 1; max-width: none; min-width: 0; }
+@media print { .allergen-scroll { overflow: visible; margin: 0; padding: 0; } .allergen-table .dish-name { position: static; box-shadow: none; } }

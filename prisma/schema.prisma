@@ -55,6 +55,14 @@ model User {
   orderEvents       PurchaseOrderEvent[]
   chatMemberships   ConversationMember[]
   chatMessages      ChatMessage[]
+  temperatureLogs   TemperatureLog[]
+  receptionChecks   ReceptionCheck[]
+  cleaningLogs      CleaningLog[]
+  elaborations      Elaboration[]
+  nonConformities   NonConformity[]   @relation("NcCreator")
+  closedNcs         NonConformity[]   @relation("NcCloser")
+  trainings         TrainingCert[]
+  pestVisits        PestControlVisit[]
 }
 
 model Session {
@@ -448,4 +456,176 @@ model ChatAttachment {
   mime      String
   size      Int
   data      Bytes
+}
+
+// ─────────────────────────── Controles sanitarios (APPCC)
+
+/// Cámaras, congeladores y neveras con su rango de temperatura válido.
+model FoodEquipment {
+  id           String   @id @default(cuid())
+  name         String
+  /// REFRIGERACION, CONGELACION, CALIENTE
+  kind         String
+  minTemp      Float
+  maxTemp      Float
+  /// Lecturas por día: 2 = apertura y cierre
+  checksPerDay Int      @default(2)
+  area         String   @default("COCINA")
+  active       Boolean  @default(true)
+  sort         Int      @default(0)
+  logs         TemperatureLog[]
+}
+
+model TemperatureLog {
+  id               String        @id @default(cuid())
+  equipmentId      String
+  equipment        FoodEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  value            Float
+  outOfRange       Boolean       @default(false)
+  correctiveAction String?
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  viaAi            Boolean       @default(false)
+  at               DateTime      @default(now())
+
+  @@index([equipmentId, at])
+}
+
+/// Control de mercancía al recibirla.
+model ReceptionCheck {
+  id              String   @id @default(cuid())
+  supplierId      String?
+  supplierName    String
+  product         String
+  temperature     Float?
+  packagingOk     Boolean  @default(true)
+  labelOk         Boolean  @default(true)
+  expiryDate      DateTime? @db.Date
+  lot             String?
+  accepted        Boolean  @default(true)
+  notes           String?
+  purchaseOrderId String?
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  at              DateTime @default(now())
+}
+
+/// Plan de limpieza y desinfección.
+model CleaningItem {
+  id        String   @id @default(cuid())
+  name      String
+  area      String
+  /// DIARIA, SEMANAL, MENSUAL
+  frequency String
+  /// Producto y método ("Desengrasante, aclarar y secar")
+  method    String?
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  logs      CleaningLog[]
+}
+
+model CleaningLog {
+  id     String       @id @default(cuid())
+  itemId String
+  item   CleaningItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id])
+  notes  String?
+  viaAi  Boolean      @default(false)
+  at     DateTime     @default(now())
+
+  @@index([itemId, at])
+}
+
+/// Tipos de elaboración con su vida útil (para calcular la caducidad).
+model ElaborationType {
+  id            String   @id @default(cuid())
+  name          String
+  shelfLifeDays Int
+  /// REFRIGERADO, CONGELADO, AMBIENTE
+  storage       String   @default("REFRIGERADO")
+  allergens     String[]
+  unit          String   @default("kg")
+  active        Boolean  @default(true)
+  elaborations  Elaboration[]
+}
+
+/// Trazabilidad de elaboraciones propias: lote, fecha y caducidad (etiqueta).
+model Elaboration {
+  id         String           @id @default(cuid())
+  lot        String           @unique
+  typeId     String?
+  type       ElaborationType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  name       String
+  quantity   Float?
+  unit       String?
+  storage    String
+  allergens  String[]
+  madeAt     DateTime         @default(now())
+  expiresAt  DateTime
+  /// EN_USO, CONSUMIDO, DESECHADO
+  status     String           @default("EN_USO")
+  discardReason String?
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  viaAi      Boolean          @default(false)
+
+  @@index([status, expiresAt])
+}
+
+/// Platos de la carta con sus alérgenos (Reglamento UE 1169/2011).
+model Dish {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  allergens String[]
+  /// Puede contener trazas de…
+  traces    String[]
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model PestControlVisit {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  company   String
+  /// REVISION, TRATAMIENTO, INCIDENCIA
+  kind      String
+  notes     String?
+  nextVisit DateTime? @db.Date
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+/// Formación de manipuladores de alimentos.
+model TrainingCert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  provider  String?
+  issuedAt  DateTime @db.Date
+  expiresAt DateTime? @db.Date
+  createdAt DateTime @default(now())
+}
+
+/// No conformidades con su acción correctora.
+model NonConformity {
+  id               String    @id @default(cuid())
+  /// TEMPERATURA, RECEPCION, LIMPIEZA, ELABORACION, PLAGAS, OTRO
+  source           String
+  description      String
+  correctiveAction String?
+  /// ABIERTA, CERRADA
+  status           String    @default("ABIERTA")
+  relatedId        String?
+  createdById      String
+  createdBy        User      @relation("NcCreator", fields: [createdById], references: [id])
+  closedById       String?
+  closedBy         User?     @relation("NcCloser", fields: [closedById], references: [id])
+  closedAt         DateTime?
+  viaAi            Boolean   @default(false)
+  createdAt        DateTime  @default(now())
 }

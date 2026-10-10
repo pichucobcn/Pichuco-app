@@ -9,12 +9,13 @@ import { can } from "@/lib/permissions";
 import { todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { unreadChats } from "@/lib/services/chat";
+import { foodSafetyPendingCount } from "@/lib/services/sanidad";
 import { Icon } from "@/components/Icon";
 import { PichucoChat } from "@/components/PichucoChat";
 
 export default async function Home() {
   const user = await requireUserPage();
-  const [g, unread, openToday, journey, chats, toApprove, toSend] = await Promise.all([
+  const [g, unread, openToday, journey, chats, toApprove, toSend, health] = await Promise.all([
     greeting(user),
     unreadAnnouncements(user),
     listTasks(user, { date: todayISO(), status: "ABIERTAS", mine: !can(user, "tareas_todas") }),
@@ -22,6 +23,7 @@ export default async function Home() {
     unreadChats(user),
     can(user, "compras_aprobar") ? db.purchaseOrder.count({ where: { status: "PENDIENTE_APROBACION" } }) : Promise.resolve(0),
     can(user, "compras") ? db.purchaseOrder.count({ where: { status: "APROBADO" } }) : Promise.resolve(0),
+    foodSafetyPendingCount(user),
   ]);
   const comprasSub = toApprove ? `${toApprove} para aprobar` : toSend ? `${toSend} para enviar` : "Pedidos y proveedores";
   const mode = aiMode();
@@ -33,6 +35,9 @@ export default async function Home() {
     { href: "/tareas", icon: "tasks", title: "Tareas", sub: "Producción y pendientes", badge: openToday.length },
     { href: "/comunicados", icon: "megaphone", title: "Comunicados", sub: "Avisos del equipo", badge: unread },
     { href: "/chat", icon: "chat", title: "Chat", sub: chats ? `${chats} sin leer` : "Mensajes del equipo", badge: chats },
+    ...(can(user, "sanidad")
+      ? [{ href: "/sanidad", icon: "shield", title: "Sanidad", sub: health ? `${health} pendientes` : "Controles al día", badge: health }]
+      : []),
   ];
 
   return (

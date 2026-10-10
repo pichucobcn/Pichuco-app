@@ -13,7 +13,7 @@ const PERM_LABEL: Record<string, string> = {
   fichaje: "Fichaje", fichajes_equipo: "Fichajes del equipo", personal: "Personal", tareas_todas: "Todas las tareas",
   tareas_crear: "Asignar tareas", tareas_asignadas: "Tareas asignadas", produccion: "Producción", comunicados_ver: "Comunicados",
   comunicados_crear: "Publicar comunicados", chat: "Chat", agenda: "Agenda",
-  stock: "Stock", compras: "Compras", proveedores: "Proveedores", configuracion: "Configuración", auditoria: "Historial completo", ai: "Pichuco AI",
+  stock: "Stock", compras: "Compras", compras_aprobar: "Aprobar compras", proveedores: "Proveedores", sanidad: "Controles sanitarios", sanidad_gestion: "Gestionar sanidad", configuracion: "Configuración", auditoria: "Historial completo", ai: "Pichuco AI",
 };
 
 export default async function EquipoPage() {

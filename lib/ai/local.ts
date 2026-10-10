@@ -78,6 +78,55 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
   const date = parseSpanishDate(t, today) ?? today;
   const actions: AiAction[] = [];
 
+  // 0a) Temperaturas: "la cámara 1 está a 3 grados", "congelador -19°"
+  const eqWord = t.match(/(c[aá]mara(?:\s*(?:n[ºo°]?\s*)?\d+)?|congelador(?:\s*\d+)?|arc[oó]n|(?:nevera|heladera)(?:\s+de\s+[a-záéíóúñ]+)?|mesa fr[ií]a|frigo[a-z]*)/);
+  const tempVal = t.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|º|grados?)/) ?? (eqWord ? t.match(/\ba\s+(-?\d+(?:[.,]\d+)?)\b/) : null);
+  if (eqWord && tempVal && can(actor, "sanidad")) {
+    const value = num(tempVal[1]);
+    const action = input.match(/(?:ya\s+|y\s+)((?:cerr|ajust|mov|pas|baj|sub|revis|llam|arregl)[a-záéíóúñ]+.+)$/i)?.[1];
+    const r = await call(actor, input, actions, "register_temperature", { equipment: eqWord[1], value, corrective_action: action });
+    if (!r.ok) return { text: `No pude registrarlo: ${r.data.error}`, actions };
+    if (!r.data.outOfRange) return { text: `Anotado: ${r.data.equipment} a ${value} °C. Todo en rango (${r.data.range}).`, actions };
+    return {
+      text: r.data.incidentOpen
+        ? `Ojo: ${r.data.equipment} está a ${value} °C, fuera de rango (${r.data.range}). Abrí una incidencia y avisé a los responsables.\n\n¿Qué hiciste? Por ejemplo: “cerré bien la puerta y vuelvo a medir en 30 minutos”. Podés anotarlo en Sanidad → Incidencias.`
+        : `Anotado: ${r.data.equipment} a ${value} °C, fuera de rango (${r.data.range}). Quedó registrada la acción correctora.`,
+      actions,
+    };
+  }
+
+  // 0b) Limpieza: "limpié la campana", "desinfecté las tablas"
+  const clean = input.match(/\b(?:limpi[eé]|limpiamos|desinfect[eé]|desinfectamos|ya est[aá] limpi[ao])\s+(?:el |la |los |las )?(.+?)[.!]?$/i);
+  if (clean && can(actor, "sanidad")) {
+    const r = await call(actor, input, actions, "register_cleaning", { item: clean[1] });
+    if (!r.ok) return { text: `No pude registrarlo: ${r.data.error}`, actions };
+    return { text: `Hecho: limpieza de ${r.data.item.toLowerCase()} registrada.`, actions };
+  }
+
+  // 0c) Elaboraciones: "hice 8 kg de masa", "preparé salsa de tomate"
+  const elab = t.match(/\b(?:hice|hicimos|prepar[eé]|preparamos|elabor[eé]|elaboramos)\s+(?:(\d+(?:[.,]\d+)?)\s*(kg|kilos?|l|litros?|unidades?|bandejas?)?\s*(?:de\s+)?)?(.+?)[.!]?$/);
+  if (elab && can(actor, "sanidad")) {
+    const unit = elab[2] ? (/^k/.test(elab[2]) ? "kg" : /^l/.test(elab[2]) ? "l" : elab[2]) : undefined;
+    const r = await call(actor, input, actions, "register_elaboration", { product: stripDateWords(elab[3]), quantity: elab[1] ? num(elab[1]) : undefined, unit });
+    if (!r.ok) return { text: `No pude registrarlo: ${r.data.error}`, actions };
+    return {
+      text: `Registrado: ${r.data.name}, lote ${r.data.lot}. Consumir antes del ${relativeDay(r.data.expires)}.${r.data.allergens.length ? ` Alérgenos: ${r.data.allergens.join(", ").toLowerCase()}.` : ""}\n\nLa etiqueta está lista para imprimir en Sanidad → Etiquetas.`,
+      actions,
+    };
+  }
+
+  // 0d) Estado de controles: "¿qué controles faltan?", "¿qué caduca hoy?"
+  if (/(qu[eé] controles|controles (pendientes|de hoy)|\bappcc\b|qu[eé] (caduca|vence)|c[oó]mo (estamos|vamos) (de|con) sanidad)/.test(t) && can(actor, "sanidad")) {
+    const r = await call(actor, input, actions, "get_food_safety_status", {});
+    const d = r.data;
+    const parts: string[] = [];
+    if (d.temperaturesPending.length) parts.push(`Temperaturas por tomar:\n${d.temperaturesPending.map((x: any) => `• ${x.equipment} (${x.done}/${x.required})`).join("\n")}`);
+    if (d.cleaningPending.length) parts.push(`Limpieza pendiente:\n${d.cleaningPending.map((x: any) => `• ${x.item}`).join("\n")}`);
+    if (d.expiring.length) parts.push(`Por caducar:\n${d.expiring.map((x: any) => `• ${x.name} (lote ${x.lot}) — ${x.state === "caducado" ? "caducado" : `caduca ${x.state}`}`).join("\n")}`);
+    if (d.openIncidents.length) parts.push(`Incidencias abiertas:\n${d.openIncidents.map((x: string) => `• ${x}`).join("\n")}`);
+    return { text: parts.length ? parts.join("\n\n") : "Los controles de hoy están al día.", actions };
+  }
+
   // 1) Ausencias
   if (/\b(no (voy a )?(ir|venir|puedo (ir|venir))|no vengo|no voy|falto|estoy enferm[oa])\b/.test(t)) {
     const r = await call(actor, input, actions, "report_absence", { date, reason: reasonOf(input) });
