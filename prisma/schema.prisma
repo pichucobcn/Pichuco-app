@@ -5,9 +5,10 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  /// Conexión directa (sin pooler) para crear/actualizar tablas. En Neon/Vercel
-  /// es DATABASE_URL_UNPOOLED; en local, la misma que DATABASE_URL.
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  /// Conexión directa para crear/actualizar tablas. En Supabase es la del
+  /// "Session pooler" (puerto 5432); DATABASE_URL es la del "Transaction
+  /// pooler" (puerto 6543, con ?pgbouncer=true). En local, las dos iguales.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
