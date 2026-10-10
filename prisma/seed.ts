@@ -8,7 +8,7 @@ import { addDays, toDbDate, todayISO } from "../lib/dates";
 const db = new PrismaClient();
 
 const USERS: { email: string; name: string; shortName: string; role: Role; area: Area; avatarColor: string }[] = [
-  { email: "martin@pichuco.es", name: "Martín Grossman", shortName: "Martín", role: "JEFE", area: "ADMIN", avatarColor: "#862820" },
+  { email: "martin@pichuco.es", name: "Martín Grossman", shortName: "Martín", role: "JEFE", area: "ADMIN", avatarColor: "#351a17" },
   { email: "gian@pichuco.es", name: "Gian Marcuzzi", shortName: "Gian", role: "JEFE_COCINA", area: "COCINA", avatarColor: "#5b6b2f" },
   { email: "juanpablo@pichuco.es", name: "Juan Pablo Buono", shortName: "Juan Pablo", role: "COCINERO", area: "COCINA", avatarColor: "#b5651d" },
   { email: "eva@pichuco.es", name: "Eva Fort", shortName: "Eva", role: "CAMARERA", area: "SALA", avatarColor: "#2f5d6b" },

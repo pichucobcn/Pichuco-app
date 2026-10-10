@@ -5,9 +5,13 @@
  * el texto, y una script sólo para la frase de marca.
  */
 :root {
-  --burgundy: #862820;
-  --burgundy-dark: #6b1f19;
-  --burgundy-soft: rgba(134, 40, 32, 0.09);
+  /* El rojo del dibujo de Pichuco es el color principal (fondo de la app) */
+  --burgundy: #8d181f;
+  --burgundy-dark: #701218;
+  --burgundy-soft: rgba(141, 24, 31, 0.09);
+  --wine-deep: #540c11;
+  --on-dark-muted: rgba(252, 240, 214, 0.74);
+  --on-dark-line: rgba(252, 240, 214, 0.24);
   --cream: #fcf0d6;
   --cream-2: #f5e4c0;
   --brown: #351a17;
@@ -16,7 +20,7 @@
   --green: #4a7536;
   --amber: #b07612;
   --line: rgba(53, 26, 23, 0.12);
-  --line-strong: rgba(134, 40, 32, 0.28);
+  --line-strong: rgba(141, 24, 31, 0.28);
   --shadow: 0 1px 2px rgba(53, 26, 23, 0.06), 0 6px 20px rgba(53, 26, 23, 0.07);
   --shadow-lift: 0 2px 4px rgba(53, 26, 23, 0.08), 0 12px 28px rgba(53, 26, 23, 0.12);
   --radius: 14px;
@@ -31,12 +35,12 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--font-body);
-  color: var(--brown);
-  background-color: var(--cream);
-  /* textura de papel sutil */
+  color: var(--cream);
+  background-color: var(--burgundy);
+  /* textura de papel impreso sutil */
   background-image:
-    radial-gradient(rgba(53, 26, 23, 0.03) 1px, transparent 1px),
-    radial-gradient(rgba(134, 40, 32, 0.022) 1px, transparent 1px);
+    radial-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px),
+    radial-gradient(rgba(255, 240, 210, 0.035) 1px, transparent 1px);
   background-size: 7px 7px, 13px 13px;
   background-position: 0 0, 3px 5px;
   font-size: 16px;
@@ -354,3 +358,94 @@ table.simple th { font-family: var(--font-label); font-weight: 500; font-size: 1
 /* Rótulos dentro de las respuestas de Pichuco (PERSONAL, ENTREGAS…) */
 .msg .heading { display: block; font-family: var(--font-label); font-weight: 500; font-size: 12.5px; letter-spacing: 0.12em; color: var(--burgundy); margin-top: 12px; }
 .msg .heading.first { font-family: var(--font-display); font-size: 19px; letter-spacing: 0; text-transform: none; margin: 0 0 -4px; }
+
+
+/* ══ Fondo burdeos ═══════════════════════════════════════
+ * La app vive sobre el rojo de Pichuco. Todo lo que va directamente sobre el
+ * fondo usa crema; las piezas crema (tarjetas, chat, módulos) vuelven a la
+ * paleta oscura sobre claro. */
+.card, .module, .ai-hero, .poster { color: var(--brown); }
+:focus-visible { outline-color: var(--cream); }
+:is(.card, .ai-hero, .module, .poster) :focus-visible { outline-color: var(--burgundy); }
+
+.muted { color: var(--on-dark-muted); }
+:is(.card, .ai-hero, .module, .poster) .muted { color: var(--brown-soft); }
+.error { color: #ffd9c7; }
+:is(.card, .ai-hero, .poster) .error { color: var(--burgundy); }
+.empty { color: var(--on-dark-muted); }
+.card.empty, .card .empty { color: var(--brown-soft); }
+
+/* Cabecera */
+.topbar .who strong { color: var(--cream); }
+.topbar .who span { color: var(--on-dark-muted); }
+.avatar { box-shadow: 0 0 0 2px var(--burgundy), 0 0 0 3.5px var(--on-dark-line); }
+.bell { background: rgba(255, 255, 255, 0.08); color: var(--cream); box-shadow: inset 0 0 0 1px var(--on-dark-line); }
+.bell .badge { background: var(--cream); color: var(--burgundy); box-shadow: 0 0 0 2px var(--burgundy); }
+.module .badge { box-shadow: 0 0 0 2px var(--warm-white); }
+
+/* Títulos y secciones */
+.page-title h1 { color: var(--cream); }
+.page-title .back { background: rgba(255, 255, 255, 0.08); color: var(--cream); box-shadow: inset 0 0 0 1px var(--on-dark-line); }
+.filete { color: var(--cream); }
+.filete::before, .filete::after {
+  background:
+    linear-gradient(var(--on-dark-line), var(--on-dark-line)) center / 100% 1px no-repeat,
+    radial-gradient(circle, var(--cream) 2.2px, transparent 2.6px) right center / 7px 7px no-repeat;
+}
+.tagline-foot { color: var(--cream); opacity: 0.85; }
+
+/* Botones sobre el fondo: crema con filete rojo */
+.btn {
+  background: var(--cream); color: var(--burgundy);
+  box-shadow: inset 0 0 0 3px var(--cream), inset 0 0 0 4px rgba(141, 24, 31, 0.35), 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+.btn:hover { background: #fff6e2; box-shadow: inset 0 0 0 3px #fff6e2, inset 0 0 0 4px rgba(141, 24, 31, 0.35), 0 3px 12px rgba(0, 0, 0, 0.2); }
+.btn.secondary, .btn.huge.secondary { background: transparent; color: var(--cream); box-shadow: inset 0 0 0 1.5px rgba(252, 240, 214, 0.65); }
+.btn.secondary:hover { background: rgba(255, 255, 255, 0.07); }
+.btn.dark, .btn.dark:hover { background: var(--wine-deep); color: var(--cream); box-shadow: inset 0 0 0 3px var(--wine-deep), inset 0 0 0 4px rgba(252, 240, 214, 0.28), 0 3px 12px rgba(0, 0, 0, 0.25); }
+.btn.add { color: var(--cream); border-color: rgba(252, 240, 214, 0.5); background: transparent; box-shadow: none; }
+.btn.add:hover { background: rgba(255, 255, 255, 0.06); }
+.btn.small:not(.secondary):not(.ghost):not(.dark) { box-shadow: inset 0 0 0 2px var(--cream), inset 0 0 0 3px rgba(141, 24, 31, 0.3); }
+
+/* Botones dentro de piezas crema: rojo con filete crema */
+:is(.card, .ai-hero, .poster) .btn {
+  background: var(--burgundy); color: var(--cream);
+  box-shadow: inset 0 0 0 3px var(--burgundy), inset 0 0 0 4px rgba(252, 240, 214, 0.45), 0 3px 10px rgba(141, 24, 31, 0.22);
+}
+:is(.card, .ai-hero, .poster) .btn:hover { background: var(--burgundy-dark); box-shadow: inset 0 0 0 3px var(--burgundy-dark), inset 0 0 0 4px rgba(252, 240, 214, 0.45), 0 3px 10px rgba(141, 24, 31, 0.22); }
+:is(.card, .ai-hero, .poster) .btn.small:not(.secondary):not(.ghost):not(.dark) { box-shadow: inset 0 0 0 2px var(--burgundy), inset 0 0 0 3px rgba(252, 240, 214, 0.4); }
+:is(.card, .ai-hero, .poster) .btn.secondary { background: transparent; color: var(--burgundy); box-shadow: inset 0 0 0 1.5px var(--burgundy); }
+:is(.card, .ai-hero, .poster) .btn.secondary:hover { background: var(--burgundy-soft); }
+:is(.card, .ai-hero, .poster) .btn.dark { background: var(--brown); box-shadow: inset 0 0 0 3px var(--brown), inset 0 0 0 4px rgba(252, 240, 214, 0.3); }
+
+/* Filtros y selector de días */
+.tabs a { background: rgba(255, 255, 255, 0.08); color: var(--on-dark-muted); box-shadow: inset 0 0 0 1px var(--on-dark-line); }
+.tabs a.active { background: var(--cream); color: var(--burgundy); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }
+.days a { background: rgba(255, 255, 255, 0.07); color: var(--on-dark-muted); box-shadow: inset 0 0 0 1px var(--on-dark-line); }
+.days a b { color: var(--cream); }
+.days a.active { background: var(--cream); color: var(--burgundy); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }
+.days a.active b { color: var(--burgundy); }
+.tl-item .time { color: var(--cream); }
+
+/* Navegación inferior: vino profundo, pestaña activa en crema */
+.bottom-nav { background: var(--wine-deep); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25); }
+.bottom-nav::before { background: var(--on-dark-line); height: 1px; box-shadow: none; }
+.bottom-nav a { color: var(--on-dark-muted); }
+.bottom-nav a.active { background: var(--cream); color: var(--burgundy); }
+
+/* Chat de Pichuco AI: pieza crema */
+.ai-hero { box-shadow: inset 0 0 0 1px var(--line), inset 0 0 0 6px var(--warm-white), inset 0 0 0 7.5px var(--burgundy), 0 10px 30px rgba(0, 0, 0, 0.22); }
+.ai-hero.chat-page { padding: 18px 14px 14px; }
+.ai-hero.chat-page .convo { margin-top: 6px; }
+
+/* Login: el dibujo sobre una estampa crema */
+.login .poster {
+  background: var(--warm-white); border-radius: 22px; padding: 22px 18px 10px; margin-bottom: 14px;
+  box-shadow: inset 0 0 0 6px var(--warm-white), inset 0 0 0 7.5px var(--burgundy), 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+.login .poster .mascot { width: 230px; max-width: 72%; margin: 0 auto; display: block; }
+.login .poster .tagline { margin: 6px 0 4px; }
+.login .card { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); }
+.avatar { box-shadow: 0 0 0 2px var(--burgundy), 0 0 0 3.5px rgba(252, 240, 214, 0.55); }
+.card .avatar { box-shadow: 0 0 0 2px var(--warm-white), 0 0 0 3.5px var(--line-strong); }
+.login .poster .tagline { font-size: 23px; }

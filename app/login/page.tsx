@@ -7,9 +7,10 @@ export default async function LoginPage() {
   return (
     <main className="login">
       <div className="box">
-        <img src="/brand/logo.png" alt="Pichuco — Pizzería Porteña" className="logo" />
-        <p className="tagline">Hablale a Pichuco. Pichuco se encarga.</p>
-        <img src="/brand/pichuco.png" alt="" className="mascot" />
+        <div className="poster">
+          <img src="/brand/pichuco.png" alt="Pichuco — Pizzería Porteña" className="mascot" />
+          <p className="tagline">Hablale a Pichuco. Pichuco se encarga.</p>
+        </div>
         <LoginForm demo={process.env.PICHUCO_DEMO_OTP === "1"} />
       </div>
     </main>

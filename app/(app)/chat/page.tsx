@@ -13,9 +13,10 @@ export default async function ChatPage() {
     <main>
       <PageTitle title="Chat" />
       <div className="grid-2">
-        <Link href="/pichuco" className="card" style={{ background: "var(--burgundy)", color: "var(--cream)" }}>
-          <b style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20 }}>Pichuco AI</b>
-          <div className="small">Asistente operativo: tareas, retrasos, agenda.</div>
+        <Link href="/pichuco" className="card" style={{ boxShadow: "inset 0 0 0 1.5px var(--burgundy), var(--shadow)" }}>
+          <img src="/brand/pichuco-cara.png" alt="" className="ai-face" style={{ float: "right" }} />
+          <b style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20, color: "var(--burgundy)" }}>Pichuco AI</b>
+          <div className="small muted">Asistente operativo: tareas, retrasos, agenda.</div>
         </Link>
         <div className="card">
           <b style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20 }}>Chat del equipo</b>

@@ -28,7 +28,7 @@ model User {
   shortName   String
   role        Role
   area        Area     @default(GENERAL)
-  avatarColor String   @default("#862820")
+  avatarColor String   @default("#351a17")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 

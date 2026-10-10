@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="shell">
         <header className="topbar">
           <Link href="/" aria-label="Inicio">
-            <img src="/brand/logo.png" alt="Pichuco — Pizzería Porteña" className="logo" />
+            <img src="/brand/logo-crema.png" alt="Pichuco — Pizzería Porteña" className="logo" />
           </Link>
           <div className="who">
             <strong>{user.shortName}</strong>
