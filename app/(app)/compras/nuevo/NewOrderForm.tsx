@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/components/api";
 
 type Product = { id: string; name: string; unit: string; category: string; price: number; stock: number; minStock: number; suggested: number };
-type Supplier = { id: string; name: string; minOrder: number | null; nextDelivery: string; deliveryTime: string | null; products: Product[] };
+type Supplier = { id: string; name: string; minOrder: number | null; nextDelivery: string; deliveryTime: string | null; deliveryTimeTo: string | null; products: Product[] };
 
 const eur = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
@@ -26,6 +26,7 @@ export function NewOrderForm({
   );
   const [date, setDate] = useState(supplier?.nextDelivery ?? "");
   const [time, setTime] = useState(supplier?.deliveryTime ?? "");
+  const [timeTo, setTimeTo] = useState(supplier?.deliveryTimeTo ?? "");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -36,6 +37,7 @@ export function NewOrderForm({
     setQty({});
     setDate(s?.nextDelivery ?? "");
     setTime(s?.deliveryTime ?? "");
+    setTimeTo(s?.deliveryTimeTo ?? "");
   }
 
   const lines = useMemo(
@@ -73,6 +75,7 @@ export function NewOrderForm({
         lines: lines.map((l) => ({ productId: l.p.id, quantity: l.q })),
         deliveryDate: date || undefined,
         deliveryTime: time || undefined,
+        deliveryTimeTo: time && timeTo ? timeTo : undefined,
         notes: notes || undefined,
       });
       router.push(`/compras/${r.number}`);
@@ -87,8 +90,8 @@ export function NewOrderForm({
     <form className="stack" onSubmit={submit}>
       <div className="card stack">
         <div className="field">
-          <label>Proveedor</label>
-          <select className="input" value={supplierId} onChange={(e) => pickSupplier(e.target.value)}>
+          <label htmlFor="o-supplier">Proveedor</label>
+          <select id="o-supplier" className="input" value={supplierId} onChange={(e) => pickSupplier(e.target.value)}>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -96,14 +99,18 @@ export function NewOrderForm({
             ))}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="o-date">Entregar el día</label>
+          <input id="o-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
         <div className="grid-2">
           <div className="field">
-            <label>Entrega</label>
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <label htmlFor="o-from">Entre las</label>
+            <input id="o-from" className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
           <div className="field">
-            <label>Hora</label>
-            <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <label htmlFor="o-to">y las</label>
+            <input id="o-to" className="input" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
           </div>
         </div>
       </div>

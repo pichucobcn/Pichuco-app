@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getOrder, getPolicy, orderTotalLabel, STATUS_FLOW, STATUS_LABEL, supplierLinks } from "@/lib/services/purchases";
+import { getOrder, getPolicy, orderTotalLabel, STATUS_FLOW, STATUS_LABEL, supplierLinks, windowText } from "@/lib/services/purchases";
 import { fmtEur, fmtQty } from "@/lib/services/stock";
 import { listTeam } from "@/lib/services/team";
 import { dateOf, fromDbDate, prettyDate, relativeDay, timeOf, todayISO, addDays } from "@/lib/dates";
@@ -76,13 +76,13 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
         <div className="small">
           <div>
             <span className="muted">Entrega: </span>
-            {o.deliveryDate ? `${whenLabel(fromDbDate(o.deliveryDate))}${o.deliveryTime ? ` a las ${o.deliveryTime}` : ""}` : "a confirmar"}
+            {o.deliveryDate ? `${whenLabel(fromDbDate(o.deliveryDate))} ${windowText(o.deliveryTime, o.deliveryTimeTo)}` : "a confirmar"}
           </div>
           {o.approvalNote && (
             <div>
               <span className="muted">Aprobación: </span>
               {o.approvalNote}
-              {o.approvedBy ? ` Aprobado por ${o.approvedBy.shortName}.` : ""}
+              {o.approvedBy && !o.approvalNote.includes("Aprobado por") ? ` Aprobado por ${o.approvedBy.shortName}.` : ""}
             </div>
           )}
           {o.notes && (
@@ -102,6 +102,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
           total: o.total,
           deliveryDate: o.deliveryDate ? fromDbDate(o.deliveryDate) : addDays(todayISO(), 1),
           deliveryTime: o.deliveryTime ?? "",
+          deliveryTimeTo: o.deliveryTimeTo ?? "",
           lines: o.lines.map((l) => ({ id: l.id, name: l.product.name, unit: l.product.unit, quantity: l.quantity })),
         }}
         links={links}

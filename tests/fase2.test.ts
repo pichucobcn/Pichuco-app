@@ -4,7 +4,7 @@ import { execSync } from "node:child_process";
 import { db } from "../lib/db";
 import { localAgent } from "../lib/ai/local";
 import { executeTool } from "../lib/ai/tools";
-import { approveOrder, createOrder, decideApproval, markSent, receiveOrder, confirmOrder } from "../lib/services/purchases";
+import { approveOrder, createOrder, decideApproval, markSent, receiveOrder, confirmOrder, getOrder, supplierMessage } from "../lib/services/purchases";
 import { createConversation, listMessages, sendMessage, getAttachment } from "../lib/services/chat";
 import { adjustStock, listProducts } from "../lib/services/stock";
 
@@ -79,8 +79,13 @@ test("ciclo completo: enviar, confirmar (Agenda) y recibir suma al stock", async
   const { order, approved } = await createOrder(gian, { lines: [{ productName: "bacon", quantity: 5, unitPrice: 9 }] }); // 45 €
   assert.equal(approved, true);
   await markSent(gian, order.number, "WHATSAPP");
-  await confirmOrder(gian, order.number, { deliveryDate: "2026-10-13", deliveryTime: "12:00" });
-  assert.ok(await db.agendaEvent.findUnique({ where: { purchaseOrderId: order.id } }));
+  await assert.rejects(confirmOrder(gian, order.number, { deliveryDate: "2026-10-13", deliveryTime: "12:00", deliveryTimeTo: "11:00" }), /posterior/);
+  await confirmOrder(gian, order.number, { deliveryDate: "2026-10-13", deliveryTime: "10:00", deliveryTimeTo: "12:00" });
+  const ev = await db.agendaEvent.findUniqueOrThrow({ where: { purchaseOrderId: order.id } });
+  assert.equal(ev.time, "10:00");
+  assert.equal(ev.endTime, "12:00");
+  const full = await getOrder(gian, order.number);
+  assert.match(supplierMessage(full), /Entrega: martes 13\/10 entre las 10:00 y las 12:00\./);
   await receiveOrder(gian, order.number, { received: { [order.lines[0].id]: 4 } });
   const after = await db.product.findUniqueOrThrow({ where: { id: before.id } });
   assert.equal(after.stock, before.stock + 4);

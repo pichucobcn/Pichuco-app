@@ -24,7 +24,7 @@ export default async function ProveedoresPage() {
             </div>
             <div className="small muted" style={{ marginTop: 4 }}>
               Reparte {s.deliveryDays.map((d) => DAY_SHORT[d]).join(", ") || "a convenir"}
-              {s.deliveryTime ? ` · ${s.deliveryTime}` : ""}
+              {s.deliveryTime ? ` · ${s.deliveryTimeTo ? `${s.deliveryTime}–${s.deliveryTimeTo}` : s.deliveryTime}` : ""}
               {s.minOrder ? ` · mínimo ${fmtEur(s.minOrder)}` : ""}
             </div>
             <div className="small" style={{ marginTop: 6 }}>

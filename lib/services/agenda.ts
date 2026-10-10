@@ -34,7 +34,7 @@ export async function getSchedule(actor: Actor, date: string) {
   const ev = (kind: string) =>
     events
       .filter((e) => e.kind === kind)
-      .map((e) => ({ id: e.id, time: e.time, title: e.title, people: e.people, detail: e.detail, responsible: e.responsible?.shortName ?? null }));
+      .map((e) => ({ id: e.id, time: e.time, endTime: e.endTime, title: e.title, people: e.people, detail: e.detail, responsible: e.responsible?.shortName ?? null }));
 
   return {
     date,
@@ -77,7 +77,7 @@ export function formatSchedule(s: Schedule): string {
   }
   if (s.deliveries.length) {
     lines.push("", "ENTREGAS");
-    for (const e of s.deliveries) lines.push(`• ${e.title} ${e.time}${e.responsible ? ` (recibe ${e.responsible})` : ""}`);
+    for (const e of s.deliveries) lines.push(`• ${e.title} ${e.endTime ? `${e.time}–${e.endTime}` : e.time}${e.responsible ? ` (recibe ${e.responsible})` : ""}`);
   }
   return lines.join("\n");
 }

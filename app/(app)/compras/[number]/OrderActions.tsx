@@ -13,7 +13,7 @@ export function OrderActions({
   mandatory,
   team,
 }: {
-  order: { id: string; number: number; status: string; total: number; deliveryDate: string; deliveryTime: string; lines: Line[] };
+  order: { id: string; number: number; status: string; total: number; deliveryDate: string; deliveryTime: string; deliveryTimeTo: string; lines: Line[] };
   links: { text: string; whatsapp: string | null; email: string | null; phone: string | null };
   canApprove: boolean;
   mandatory: boolean;
@@ -24,6 +24,7 @@ export function OrderActions({
   const [error, setError] = useState<string>();
   const [date, setDate] = useState(order.deliveryDate);
   const [time, setTime] = useState(order.deliveryTime || "10:00");
+  const [timeTo, setTimeTo] = useState(order.deliveryTimeTo || "");
   const [responsibleId, setResponsibleId] = useState("");
   const [received, setReceived] = useState<Record<string, string>>(() => Object.fromEntries(order.lines.map((l) => [l.id, String(l.quantity)])));
   const [copied, setCopied] = useState(false);
@@ -109,12 +110,18 @@ export function OrderActions({
           <div className="eyebrow">{s === "ENVIADO" ? "¿Confirmó el proveedor?" : "Cambiar la entrega"}</div>
           <div className="grid-2">
             <div className="field">
-              <label>Día</label>
-              <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <label htmlFor="c-date">Entregar el día</label>
+              <input id="c-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid-2">
+            <div className="field">
+              <label htmlFor="c-from">Entre las</label>
+              <input id="c-from" className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
             <div className="field">
-              <label>Hora</label>
-              <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              <label htmlFor="c-to">y las</label>
+              <input id="c-to" className="input" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
             </div>
           </div>
           <div className="field">
@@ -128,7 +135,7 @@ export function OrderActions({
               ))}
             </select>
           </div>
-          <button className="btn" disabled={busy || !date || !time} onClick={() => act("confirm", { deliveryDate: date, deliveryTime: time, responsibleId: responsibleId || null })}>
+          <button className="btn" disabled={busy || !date || !time} onClick={() => act("confirm", { deliveryDate: date, deliveryTime: time, deliveryTimeTo: timeTo || null, responsibleId: responsibleId || null })}>
             {s === "ENVIADO" ? "Confirmado: guardar en la Agenda" : "Actualizar entrega"}
           </button>
         </div>

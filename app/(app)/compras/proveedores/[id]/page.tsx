@@ -18,7 +18,7 @@ export default async function ProveedorPage({ params }: { params: Promise<{ id: 
     ["WhatsApp", s.whatsapp && <a href={`https://wa.me/${s.whatsapp.replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer">{s.whatsapp}</a>],
     ["Email", s.email && <a href={`mailto:${s.email}`}>{s.email}</a>],
     ["Atención", s.hours],
-    ["Reparto", `${s.deliveryDays.map((d) => DAY_SHORT[d]).join(", ") || "a convenir"}${s.deliveryTime ? ` · ${s.deliveryTime}` : ""}`],
+    ["Reparto", `${s.deliveryDays.map((d) => DAY_SHORT[d]).join(", ") || "a convenir"}${s.deliveryTime ? ` · ${s.deliveryTimeTo ? `entre las ${s.deliveryTime} y las ${s.deliveryTimeTo}` : `a las ${s.deliveryTime}`}` : ""}`],
     ["Pedido mínimo", s.minOrder != null ? fmtEur(s.minOrder) : null],
     ["Condiciones", s.conditions],
   ];

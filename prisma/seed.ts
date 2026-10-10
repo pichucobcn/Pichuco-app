@@ -128,17 +128,17 @@ async function main() {
   const harina = await db.purchaseOrder.create({
     data: {
       supplierId: SUP["Cusiné"], status: "CONFIRMADO", total: 0, approvalNote: "Hay productos sin precio cargado: requiere aprobación del jefe. Aprobado por Martín.",
-      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
+      deliveryDate: toDbDate(tomorrow), deliveryTime: "18:15", deliveryTimeTo: "19:00", createdById: u.Gian, approvedById: u.Martín, approvedAt: new Date(), sentAt: new Date(), sentVia: "WHATSAPP", confirmedAt: new Date(),
       lines: { create: [{ productId: PRD["Harina"], quantity: 100, unitPrice: 0 }, { productId: PRD["Sal"], quantity: 5, unitPrice: 0 }] },
       events: { create: [
         { userId: u.Gian, text: "Preparó el pedido. Hay productos sin precio cargado: requiere aprobación del jefe." },
         { userId: u.Martín, text: "Aprobó el pedido." },
         { userId: u.Gian, text: "Envió el pedido al proveedor (whatsapp)." },
-        { userId: u.Gian, text: "Proveedor confirmó. Entrega mañana 18:15." },
+        { userId: u.Gian, text: "Proveedor confirmó. Entrega mañana entre las 18:15 y las 19:00." },
       ] },
     },
   });
-  await ev("ENTREGA", tomorrow, "18:15", "Harina", { responsibleId: u["Juan Pablo"], detail: "Cusiné — pedido #" + harina.number + ": 100 kg de harina, 5 kg de sal", purchaseOrderId: harina.id });
+  await ev("ENTREGA", tomorrow, "18:15", "Harina", { endTime: "19:00", responsibleId: u["Juan Pablo"], detail: "Cusiné — pedido #" + harina.number + ": 100 kg de harina, 5 kg de sal", purchaseOrderId: harina.id });
   // Refrescos pendientes de aprobación de Martín
   await db.purchaseOrder.create({
     data: {

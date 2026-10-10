@@ -24,6 +24,7 @@ export default async function NuevoPedidoPage({ searchParams }: { searchParams: 
           minOrder: s.minOrder,
           nextDelivery: nextDeliveryDate(s.deliveryDays, tomorrow),
           deliveryTime: s.deliveryTime,
+          deliveryTimeTo: s.deliveryTimeTo,
           products: s.products.map((p) => ({
             id: p.id,
             name: p.name,

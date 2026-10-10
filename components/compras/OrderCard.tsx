@@ -24,6 +24,7 @@ export function OrderCard({
     items: string;
     deliveryDate: Date | null;
     deliveryTime: string | null;
+    deliveryTimeTo?: string | null;
     createdBy: string;
     createdByAi: boolean;
   };
@@ -43,7 +44,7 @@ export function OrderCard({
         {o.deliveryDate && !["ENTREGADO", "CANCELADO"].includes(o.status) && (
           <span className="tag brown">
             Entrega {relativeDay(fromDbDate(o.deliveryDate))}
-            {o.deliveryTime ? ` ${o.deliveryTime}` : ""}
+            {o.deliveryTime ? ` ${o.deliveryTimeTo ? `${o.deliveryTime}–${o.deliveryTimeTo}` : o.deliveryTime}` : ""}
           </span>
         )}
         <span className="tag brown">{o.createdBy}</span>

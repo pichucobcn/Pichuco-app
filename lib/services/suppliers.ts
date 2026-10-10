@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "../db";
-import { assertCan, can, NotFoundError } from "../permissions";
+import { assertCan, can, NotFoundError, ValidationError } from "../permissions";
 import { audit } from "./audit";
 import type { Actor, ActionContext } from "./context";
 
@@ -70,6 +70,7 @@ export const supplierSchema = z.object({
   hours: z.string().max(100).optional().nullable(),
   deliveryDays: z.array(z.number().int().min(0).max(6)).default([]),
   deliveryTime: z.string().max(10).optional().nullable(),
+  deliveryTimeTo: z.string().max(10).optional().nullable(),
   minOrder: z.number().min(0).optional().nullable(),
   conditions: z.string().max(500).optional().nullable(),
   channel: z.enum(["WHATSAPP", "EMAIL", "TELEFONO"]).default("WHATSAPP"),
@@ -79,6 +80,8 @@ export const supplierSchema = z.object({
 export async function saveSupplier(actor: Actor, id: string | null, raw: z.input<typeof supplierSchema>, ctx: ActionContext = {}) {
   assertCan(actor, "proveedores");
   const data = supplierSchema.parse(raw);
+  if (data.deliveryTime && data.deliveryTimeTo && data.deliveryTimeTo <= data.deliveryTime)
+    throw new ValidationError("La hora de fin del reparto tiene que ser posterior a la de inicio.");
   const s = id ? await db.supplier.update({ where: { id }, data }) : await db.supplier.create({ data });
   await audit(actor, id ? "supplier.update" : "supplier.create", `Proveedor ${id ? "actualizado" : "creado"}: ${s.name}`, ctx, { supplierId: s.id });
   return s;

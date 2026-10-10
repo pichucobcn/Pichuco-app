@@ -41,7 +41,12 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       title: t.title,
       sub: `Tarea${t.assignee ? ` · ${t.assignee.shortName}` : ""}${t.status === "COMPLETADA" ? " · hecha" : ""}`,
     })),
-    ...s.deliveries.map((e) => ({ time: e.time, icon: "truck", title: `Entrega: ${e.title}`, sub: [e.detail, e.responsible && `Recibe ${e.responsible}`].filter(Boolean).join(" · ") })),
+    ...s.deliveries.map((e) => ({
+      time: e.time,
+      icon: "truck",
+      title: `Entrega: ${e.title}`,
+      sub: [e.endTime && `Entre las ${e.time} y las ${e.endTime}`, e.detail, e.responsible && `Recibe ${e.responsible}`].filter(Boolean).join(" · "),
+    })),
   ].sort((a, b) => (a.time === "—" ? 1 : b.time === "—" ? -1 : a.time.localeCompare(b.time)));
 
   const days = Array.from({ length: 10 }, (_, i) => addDays(today, i - 1));

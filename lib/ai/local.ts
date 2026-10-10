@@ -198,7 +198,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
         ? "Supera el límite: necesita aprobación obligatoria de Martín desde la app. Ya le avisé."
         : "Necesita la aprobación de Martín. Ya le avisé.";
     return {
-      text: `Preparé el pedido #${o.number} a ${o.supplier}:\n\n• ${o.items}\n• Coste estimado: ${o.total === "Sin precio" ? "sin precio cargado" : o.total}\n• Entrega prevista: ${o.delivery ? relativeDay(o.delivery.slice(0, 10)) + (o.delivery.length > 10 ? " a las " + o.delivery.slice(11) : "") : "a confirmar"}\n\n${state}`,
+      text: `Preparé el pedido #${o.number} a ${o.supplier}:\n\n• ${o.items}\n• Coste estimado: ${o.total === "Sin precio" ? "sin precio cargado" : o.total}\n• Entrega prevista: ${o.delivery ? relativeDay(o.delivery) + (o.deliveryWindow ? " " + o.deliveryWindow : "") : "a confirmar"}\n\n${state}`,
       actions,
     };
   }

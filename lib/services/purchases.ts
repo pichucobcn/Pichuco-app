@@ -95,6 +95,22 @@ export async function getOrder(actor: Actor, idOrNumber: string | number) {
   return o;
 }
 
+/** "entre las 10:00 y las 12:00" / "a las 10:00" / "" */
+export function windowText(from?: string | null, to?: string | null) {
+  if (from && to) return `entre las ${from} y las ${to}`;
+  if (from) return `a las ${from}`;
+  return "";
+}
+
+/** "10:00–12:00" para etiquetas cortas. */
+export function windowShort(from?: string | null, to?: string | null) {
+  return from && to ? `${from}–${to}` : (from ?? "");
+}
+
+function checkWindow(from?: string | null, to?: string | null) {
+  if (from && to && to <= from) throw new ValidationError("La hora de fin de la entrega tiene que ser posterior a la de inicio.");
+}
+
 /** Total para mostrar: si algún producto no tiene precio, no hay total fiable. */
 export function orderTotalLabel(o: { total: number; lines: { unitPrice: number }[] }) {
   const unpriced = o.lines.filter((l) => !l.unitPrice).length;
@@ -112,7 +128,8 @@ export function orderSummary(o: OrderWithRelations) {
 
 /** Texto del pedido para enviar al proveedor por WhatsApp o email. */
 export function supplierMessage(o: OrderWithRelations) {
-  const when = o.deliveryDate ? `${prettyDate(fromDbDate(o.deliveryDate))}${o.deliveryTime ? ` a las ${o.deliveryTime}` : ""}` : "lo antes posible";
+  const win = windowText(o.deliveryTime, o.deliveryTimeTo);
+  const when = o.deliveryDate ? `${prettyDate(fromDbDate(o.deliveryDate))}${win ? ` ${win}` : ""}` : "lo antes posible";
   return [
     `Hola${o.supplier.contactName ? " " + o.supplier.contactName : ""}, les escribimos de Pichuco Pizzería Porteña.`,
     `Queríamos hacerles el siguiente pedido (n.º ${o.number}):`,
@@ -155,6 +172,7 @@ export const orderInputSchema = z.object({
     .min(1),
   deliveryDate: z.string().refine(isISODate, "Fecha YYYY-MM-DD").optional(),
   deliveryTime: z.string().refine(isHHMM, "Hora HH:MM").optional(),
+  deliveryTimeTo: z.string().refine(isHHMM, "Hora HH:MM").optional(),
   notes: z.string().max(500).optional(),
 });
 
@@ -187,6 +205,7 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
   }
   if (!supplier) throw new NotFoundError("No encuentro el proveedor.");
 
+  checkWindow(input.deliveryTime, input.deliveryTimeTo);
   const total = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
   const hasUnpriced = lines.some((l) => !l.unitPrice);
   const decision = await decideApproval(actor, total, [...new Set(lines.map((l) => l.product.category))], hasUnpriced);
@@ -201,9 +220,10 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
       supplierId: supplier.id,
       status: approved ? "APROBADO" : "PENDIENTE_APROBACION",
       total,
-      approvalNote: (selfApproved ? "Aprobado por quien lo pidió (jefe)." : decision.note) + minWarning,
+      approvalNote: (selfApproved ? `Aprobado por ${actor.shortName} al hacer el pedido.` : decision.note) + minWarning,
       deliveryDate: toDbDate(deliveryDate),
       deliveryTime: input.deliveryTime ?? supplier.deliveryTime ?? null,
+      deliveryTimeTo: input.deliveryTime ? (input.deliveryTimeTo ?? null) : (input.deliveryTimeTo ?? supplier.deliveryTimeTo ?? null),
       notes: input.notes,
       createdById: actor.id,
       createdByAi: !!ctx.viaAi,
@@ -280,6 +300,7 @@ export async function markSent(actor: Actor, idOrNumber: string | number, via: s
 export const confirmSchema = z.object({
   deliveryDate: z.string().refine(isISODate, "Fecha YYYY-MM-DD"),
   deliveryTime: z.string().refine(isHHMM, "Hora HH:MM"),
+  deliveryTimeTo: z.string().refine(isHHMM, "Hora HH:MM").optional().nullable(),
   responsibleId: z.string().optional().nullable(),
 });
 
@@ -287,6 +308,7 @@ export const confirmSchema = z.object({
 export async function confirmOrder(actor: Actor, idOrNumber: string | number, raw: z.input<typeof confirmSchema>, ctx: ActionContext = {}) {
   assertCan(actor, "compras");
   const input = confirmSchema.parse(raw);
+  checkWindow(input.deliveryTime, input.deliveryTimeTo);
   const o = await getOrder(actor, idOrNumber);
   assertStatus(o, ["ENVIADO", "CONFIRMADO"], "confirmar");
   const title = o.lines.length === 1 ? o.lines[0].product.name : o.supplier.name;
@@ -295,19 +317,21 @@ export async function confirmOrder(actor: Actor, idOrNumber: string | number, ra
     title,
     date: toDbDate(input.deliveryDate),
     time: input.deliveryTime,
+    endTime: input.deliveryTimeTo ?? null,
     detail: `${o.supplier.name} — pedido #${o.number}: ${orderSummary(o)}`,
     responsibleId: input.responsibleId ?? null,
   };
   const [updated] = await db.$transaction([
     db.purchaseOrder.update({
       where: { id: o.id },
-      data: { status: "CONFIRMADO", confirmedAt: new Date(), deliveryDate: toDbDate(input.deliveryDate), deliveryTime: input.deliveryTime },
+      data: { status: "CONFIRMADO", confirmedAt: new Date(), deliveryDate: toDbDate(input.deliveryDate), deliveryTime: input.deliveryTime, deliveryTimeTo: input.deliveryTimeTo ?? null },
       include,
     }),
     db.agendaEvent.upsert({ where: { purchaseOrderId: o.id }, create: { ...eventData, purchaseOrderId: o.id }, update: eventData }),
   ]);
-  const when = `${relativeDay(input.deliveryDate)} a las ${input.deliveryTime}`;
-  await addEvent(o.id, actor, `Proveedor confirmó. Entrega ${prettyDate(input.deliveryDate)} ${input.deliveryTime}.`, ctx);
+  const win = windowText(input.deliveryTime, input.deliveryTimeTo);
+  const when = `${relativeDay(input.deliveryDate)} ${win}`;
+  await addEvent(o.id, actor, `Proveedor confirmó. Entrega ${prettyDate(input.deliveryDate)} ${win}.`, ctx);
   await audit(actor, "purchase.confirm", `${orderTitle(o)} confirmado. Entrega: ${when}`, ctx, { orderId: o.id });
   const cocina = (await areaManagers("COCINA")).map((u) => u.id);
   const recipients = [...cocina, ...(input.responsibleId ? [input.responsibleId] : [])].filter((id) => id !== actor.id);

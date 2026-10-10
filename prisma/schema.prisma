@@ -229,6 +229,8 @@ model AgendaEvent {
   title         String
   date          DateTime  @db.Date
   time          String
+  /// Fin de la franja (entregas "entre 10:00 y 12:00")
+  endTime       String?
   people        Int?
   detail        String?
   responsibleId String?
@@ -287,7 +289,9 @@ model Supplier {
   hours         String?
   /// Días de reparto: 0=domingo … 6=sábado
   deliveryDays  Int[]
+  /// Franja habitual de entrega: desde deliveryTime hasta deliveryTimeTo
   deliveryTime  String?
+  deliveryTimeTo String?
   minOrder      Float?
   conditions    String?
   /// Canal preferido para enviar pedidos: WHATSAPP, EMAIL, TELEFONO
@@ -353,7 +357,9 @@ model PurchaseOrder {
   /// Por qué necesita (o no) aprobación, para mostrarlo y auditarlo
   approvalNote  String?
   deliveryDate  DateTime?   @db.Date
+  /// Franja de entrega: "entre deliveryTime y deliveryTimeTo"
   deliveryTime  String?
+  deliveryTimeTo String?
   notes         String?
   createdById   String
   createdBy     User        @relation("OrderCreator", fields: [createdById], references: [id])

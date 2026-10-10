@@ -28,6 +28,7 @@ import {
   orderSummary,
   orderTotalLabel,
   receiveOrder,
+  windowText,
   STATUS_LABEL,
   type OrderWithRelations,
 } from "../services/purchases";
@@ -96,7 +97,8 @@ function orderView(o: OrderWithRelations) {
     status: STATUS_LABEL[o.status],
     total: orderTotalLabel(o),
     items: orderSummary(o),
-    delivery: o.deliveryDate ? `${fromDbDate(o.deliveryDate)}${o.deliveryTime ? " " + o.deliveryTime : ""}` : null,
+    delivery: o.deliveryDate ? fromDbDate(o.deliveryDate) : null,
+    deliveryWindow: windowText(o.deliveryTime, o.deliveryTimeTo) || null,
     approvalNote: o.approvalNote,
     createdBy: o.createdBy.shortName,
   };
@@ -420,7 +422,7 @@ export const TOOLS: Record<string, ToolDef> = {
           email: s.email,
           hours: s.hours,
           deliveryDays: s.deliveryDays.map((d) => DAY_SHORT[d]).join(", "),
-          deliveryTime: s.deliveryTime,
+          deliveryWindow: windowText(s.deliveryTime, s.deliveryTimeTo) || null,
           minOrder: s.minOrder != null ? fmtEur(s.minOrder) : null,
           conditions: s.conditions,
           products: s.products.map((p) => p.name),

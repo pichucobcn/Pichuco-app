@@ -61,6 +61,7 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
               items: orderSummary(o),
               deliveryDate: o.deliveryDate,
               deliveryTime: o.deliveryTime,
+              deliveryTimeTo: o.deliveryTimeTo,
               createdBy: o.createdBy.shortName,
               createdByAi: o.createdByAi,
             }}

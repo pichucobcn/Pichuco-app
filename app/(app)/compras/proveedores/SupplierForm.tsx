@@ -16,6 +16,7 @@ export type SupplierData = {
   hours: string | null;
   deliveryDays: number[];
   deliveryTime: string | null;
+  deliveryTimeTo: string | null;
   minOrder: number | null;
   conditions: string | null;
   channel: string;
@@ -23,7 +24,7 @@ export type SupplierData = {
 };
 
 const EMPTY: SupplierData = {
-  name: "", contactName: "", phone: "", whatsapp: "", email: "", hours: "", deliveryDays: [], deliveryTime: "",
+  name: "", contactName: "", phone: "", whatsapp: "", email: "", hours: "", deliveryDays: [], deliveryTime: "", deliveryTimeTo: "",
   minOrder: null, conditions: "", channel: "WHATSAPP", notes: "",
 };
 
@@ -68,6 +69,7 @@ export function SupplierForm({ initial }: { initial?: SupplierData }) {
             hours: clean(f.hours),
             deliveryDays: f.deliveryDays,
             deliveryTime: clean(f.deliveryTime),
+            deliveryTimeTo: clean(f.deliveryTime) ? clean(f.deliveryTimeTo) : null,
             minOrder: f.minOrder,
             conditions: clean(f.conditions),
             channel: f.channel,
@@ -135,18 +137,22 @@ export function SupplierForm({ initial }: { initial?: SupplierData }) {
       </div>
       <div className="grid-2">
         <div className="field">
-          <label>Hora de entrega</label>
+          <label>Reparte entre las</label>
           <input className="input" type="time" {...text("deliveryTime")} />
         </div>
         <div className="field">
-          <label>Pedido mínimo (€)</label>
-          <input
-            className="input"
-            inputMode="decimal"
-            value={f.minOrder ?? ""}
-            onChange={(e) => setF({ ...f, minOrder: e.target.value ? Number(e.target.value.replace(",", ".")) : null })}
-          />
+          <label>y las</label>
+          <input className="input" type="time" {...text("deliveryTimeTo")} />
         </div>
+      </div>
+      <div className="field">
+        <label>Pedido mínimo (€)</label>
+        <input
+          className="input"
+          inputMode="decimal"
+          value={f.minOrder ?? ""}
+          onChange={(e) => setF({ ...f, minOrder: e.target.value ? Number(e.target.value.replace(",", ".")) : null })}
+        />
       </div>
       <div className="field">
         <label>Horario de atención</label>
