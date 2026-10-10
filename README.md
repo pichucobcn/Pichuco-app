@@ -84,6 +84,15 @@ prisma/              esquema y datos de prueba
 public/brand/        logo y personaje (provisionales)
 ```
 
+## Publicar (Vercel + Neon)
+
+1. En Vercel: *Add New → Project* e importar este repositorio de GitHub.
+2. En el proyecto: *Storage → Create Database → Neon (Postgres)* y conectarla al proyecto (crea `DATABASE_URL` y `DATABASE_URL_UNPOOLED`).
+3. Variables de entorno: `PICHUCO_DEMO_OTP=1` (mientras no haya envío de emails) y `PICHUCO_ACCESS_CODE=<código del equipo>`.
+4. *Deploy*. El script `vercel-build` crea las tablas y, si la base está vacía, carga usuarios, catálogo y datos de prueba (`prisma/ensure-seed.ts`); en despliegues siguientes no toca los datos.
+
+Con `PICHUCO_DEMO_OTP=1` el código de login aparece en pantalla: sólo es seguro junto con `PICHUCO_ACCESS_CODE`. Para uso real hay que conectar un servicio de email y quitar el modo demo.
+
 ## Marca
 
 En `public/brand/`: `logo.png` (rojo), `logo-crema.png` (cabecera sobre burdeos), `pichuco.png` (dibujo de Pichuco con el bandoneón), `pichuco-cara.png` (avatar de Pichuco AI) e `icon-192/512.png` (icono de la app). El dibujo es rojo sobre transparente: siempre va sobre fondo crema.

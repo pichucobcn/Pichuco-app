@@ -9,8 +9,9 @@ const DEMO_USERS = [
   { email: "eva@pichuco.es", name: "Eva", role: "Camarera" },
 ];
 
-export function LoginForm({ demo }: { demo: boolean }) {
+export function LoginForm({ demo, needsAccessCode }: { demo: boolean; needsAccessCode: boolean }) {
   const [email, setEmail] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [demoCode, setDemoCode] = useState<string>();
@@ -24,7 +25,8 @@ export function LoginForm({ demo }: { demo: boolean }) {
     setBusy(true);
     setError(undefined);
     try {
-      const r = await api<{ demoCode?: string }>("/api/auth/request", { email: target });
+      if (needsAccessCode && !accessCode.trim()) throw new Error("Poné el código del equipo.");
+      const r = await api<{ demoCode?: string }>("/api/auth/request", { email: target, accessCode });
       setDemoCode(r.demoCode);
       if (r.demoCode) setCode(r.demoCode);
       setStep("code");
@@ -57,6 +59,12 @@ export function LoginForm({ demo }: { demo: boolean }) {
             requestCode();
           }}
         >
+          {needsAccessCode && (
+            <div className="field">
+              <label htmlFor="access">Código del equipo</label>
+              <input id="access" className="input" autoComplete="off" autoCapitalize="characters" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder="Te lo pasa Martín" />
+            </div>
+          )}
           <div className="field">
             <label htmlFor="email">Tu email</label>
             <input id="email" className="input" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@pichuco.es" required />
