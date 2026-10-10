@@ -201,6 +201,40 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     }
   }
 
+  // 3e) Reserva por teléfono: "Reservá mesa para 4 mañana a las 21 a nombre de García, 600123456"
+  if (/\breserv(?:a|á|ar|ame|ame)(?![a-zñáéíóú]).*\b(mesa|para)\b/.test(t) && /\d/.test(t)) {
+    const people = Number(t.match(/para\s+(\d{1,2})\b/)?.[1] ?? NaN);
+    const hm = t.match(/a las\s+(\d{1,2})(?::(\d{2}))?/);
+    const phone = input.match(/(\+?\d[\d\s]{8,14}\d)/)?.[1];
+    const name = input.match(/a nombre de\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)/)?.[1];
+    const missing = [!Number.isFinite(people) && "cuántas personas", !hm && "la hora", !name && "a nombre de quién", !phone && "un teléfono"].filter(Boolean);
+    if (missing.length) return { text: `Para cargar la reserva me falta ${missing.join(", ")}.`, actions };
+    const time = `${hm![1].padStart(2, "0")}:${hm![2] ?? "00"}`;
+    const r = await call(actor, input, actions, "create_reservation", { name, phone, people, date, time });
+    if (!r.ok) return { text: `No pude cargar la reserva: ${r.data.error}`, actions };
+    return {
+      text: `Reserva cargada: ${r.data.people} personas a nombre de ${r.data.name}, ${relativeDay(date)} a las ${time}. Código ${r.data.code}.${r.data.overCapacity ? "\n\nOjo: con esta reserva esa franja supera el cupo habitual." : ""}`,
+      actions,
+    };
+  }
+
+  // 3f) Pedidos para llevar: "el 421 está listo", "el pedido 422 lo retiraron"
+  const tk = t.match(/\b(?:pedido\s+)?#?(\d{3,})\b.*\b(listo|en preparaci[oó]n|preparando|retir(?:ado|aron|ó)|confirmado|cancelado)/);
+  if (tk) {
+    const word = tk[2];
+    const status = /listo/.test(word) ? "LISTO" : /prepar/.test(word) ? "EN_PREPARACION" : /retir/.test(word) ? "RETIRADO" : /confirm/.test(word) ? "CONFIRMADO" : "CANCELADO";
+    const r = await call(actor, input, actions, "update_takeaway_status", { order_number: Number(tk[1]), status });
+    if (!r.ok) return { text: `No pude actualizarlo: ${r.data.error}`, actions };
+    return { text: `Pedido #${r.data.number}: ${r.data.status.toLowerCase()}.`, actions };
+  }
+
+  // 3g) Demanda / masa: "¿cuánta masa hace falta mañana?"
+  if (/(cu[aá]nta masa|demanda|previsi[oó]n)/.test(t)) {
+    const r = await call(actor, input, actions, "get_demand_forecast", { date });
+    if (!r.ok) return { text: `No puedo consultarlo: ${r.data.error}`, actions };
+    return { text: `${cap(relativeDay(date))}: ${r.data.message}`, actions };
+  }
+
   // 4) Avisos a personas concretas
   const msg = input.match(/\b(?:avis[aá]le|decile|dile|avisa|recordale)\s+a\s+([a-záéíóúñ]+(?:\s+pablo)?)\s+(?:que\s+)?(.+)$/i);
   if (msg) {

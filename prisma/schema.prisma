@@ -452,3 +452,152 @@ model ChatAttachment {
   size      Int
   data      Bytes
 }
+
+// ─────────────────────────── Fase 3: clientes, reservas y pedidos para llevar
+// Datos de clientes separados de los internos: sólo se acceden con permisos
+// de reservas / pedidos / clientes.
+
+model Customer {
+  id               String   @id @default(cuid())
+  name             String
+  /// Teléfono normalizado (sólo dígitos y +): identifica al cliente
+  phone            String   @unique
+  email            String?
+  notes            String?
+  /// Aceptó la política de privacidad (obligatorio para reservar/pedir online)
+  privacyAcceptedAt DateTime?
+  /// Acepta recibir novedades (opcional)
+  marketingConsent Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  reservations     Reservation[]
+  takeawayOrders   TakeawayOrder[]
+}
+
+enum ReservationStatus {
+  CONFIRMADA
+  SENTADA
+  NO_SHOW
+  CANCELADA
+}
+
+model Reservation {
+  id          String            @id @default(cuid())
+  /// Código público para que el cliente consulte o cancele
+  code        String            @unique
+  customerId  String
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  date        DateTime          @db.Date
+  time        String
+  people      Int
+  notes       String?
+  status      ReservationStatus @default(CONFIRMADA)
+  /// WEB, TELEFONO, INTERNO
+  source      String            @default("WEB")
+  createdById String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([date])
+}
+
+enum TakeawayStatus {
+  NUEVO
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  RETIRADO
+  CANCELADO
+}
+
+enum PaymentMethod {
+  ONLINE
+  AL_RECOGER
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+  REEMBOLSADO
+}
+
+model TakeawayOrder {
+  id            String         @id @default(cuid())
+  number        Int            @unique @default(autoincrement())
+  code          String         @unique
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  date          DateTime       @db.Date
+  time          String
+  status        TakeawayStatus @default(NUEVO)
+  paymentMethod PaymentMethod  @default(AL_RECOGER)
+  paymentStatus PaymentStatus  @default(PENDIENTE)
+  /// Id de la sesión de pago (Stripe) o "demo"
+  paymentRef    String?
+  total         Float
+  notes         String?
+  source        String         @default("WEB")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lines         TakeawayLine[]
+
+  @@index([date])
+}
+
+model TakeawayLine {
+  id         String        @id @default(cuid())
+  orderId    String
+  order      TakeawayOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String?
+  menuItem   MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  /// Copia del nombre y precio en el momento del pedido
+  name       String
+  quantity   Int
+  unitPrice  Float
+  /// Extras elegidos: [{ "name": "Extra muzza", "price": 2 }]
+  extras     Json?
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  /// PIZZA, FAINA, EMPANADA, POSTRE, BEBIDA
+  category    String
+  name        String
+  description String?
+  price       Float
+  /// Cuenta como pizza para la capacidad del horno y la previsión de masa
+  isPizza     Boolean  @default(false)
+  available   Boolean  @default(true)
+  sort        Int      @default(0)
+  lines       TakeawayLine[]
+}
+
+model MenuExtra {
+  id        String  @id @default(cuid())
+  name      String
+  price     Float
+  available Boolean @default(true)
+  sort      Int     @default(0)
+}
+
+/// Configuración del restaurante (una fila, id = "default").
+model RestaurantSettings {
+  id                   String  @id @default("default")
+  /// Días cerrado: 0=domingo … 6=sábado
+  closedDays           Int[]
+  /// Turnos de servicio "HH:MM-HH:MM" (último horario de reserva = fin)
+  services             String[]
+  /// Comensales máximos que pueden empezar en una misma franja de 30 min
+  coversPerSlot        Int     @default(24)
+  /// Personas máximas por reserva online (más: por teléfono)
+  maxPartyOnline       Int     @default(8)
+  /// Pizzas máximas para llevar por franja de 15 min
+  takeawayPizzasPerSlot Int    @default(8)
+  /// Minutos mínimos de antelación para pedidos para llevar
+  takeawayLeadMinutes  Int     @default(30)
+  /// Días hacia adelante que se puede reservar
+  bookingDaysAhead     Int     @default(30)
+  phone                String  @default("+34 930 000 000")
+  address              String  @default("Barcelona")
+  onlinePayments       Boolean @default(true)
+}

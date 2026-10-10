@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUserPage } from "@/lib/auth";
-import { assertCan } from "@/lib/permissions";
+import { assertCan, can } from "@/lib/permissions";
 import { getSchedule } from "@/lib/services/agenda";
 import { addDays, isISODate, todayISO, weekdayName, relativeDay, prettyDate } from "@/lib/dates";
 import { Icon } from "@/components/Icon";
@@ -76,6 +76,24 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           </div>
         ))}
       </div>
+      <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {can(user, "reservas") && (
+          <Link href={`/reservas?d=${date}`} className="btn small secondary">
+            Ver reservas
+          </Link>
+        )}
+        {(can(user, "takeaway") || can(user, "produccion")) && (
+          <Link href={`/pedidos?d=${date}`} className="btn small secondary">
+            Ver pedidos para llevar
+          </Link>
+        )}
+      </div>
+      {s.demand && (s.demand.covers > 0 || s.demand.takeawayPizzas > 0) && (
+        <div className={`card demand ${s.demand.extraKg > 0 ? "warn" : ""}`} style={{ marginBottom: 12 }}>
+          <div className="eyebrow">Demanda prevista</div>
+          <p style={{ margin: "4px 0 0" }}>{s.demand.message}</p>
+        </div>
+      )}
       {items.length === 0 ? (
         <p className="empty">Día libre: no hay nada cargado.</p>
       ) : (

@@ -27,6 +27,12 @@ async function main() {
   const tomorrow = addDays(today, 1);
 
   await db.$transaction([
+    db.takeawayOrder.deleteMany(),
+    db.reservation.deleteMany(),
+    db.customer.deleteMany(),
+    db.menuItem.deleteMany(),
+    db.menuExtra.deleteMany(),
+    db.restaurantSettings.deleteMany(),
     db.conversation.deleteMany(),
     db.stockMovement.deleteMany(),
     db.purchaseOrder.deleteMany(),
@@ -49,6 +55,9 @@ async function main() {
     db.user.deleteMany(),
   ]);
 
+  // Numeraciones desde el principio en cada siembra
+  await db.$executeRawUnsafe(`ALTER SEQUENCE "PurchaseOrder_number_seq" RESTART WITH 1`);
+
   const u: Record<string, string> = {};
   for (const data of USERS) u[data.shortName] = (await db.user.create({ data })).id;
 
@@ -65,18 +74,9 @@ async function main() {
 
   // Hoy
   await ev("ENTREGA", today, "18:15", "Bebidas", { responsibleId: u.Eva, detail: "Distribuidora de bebidas" });
-  await ev("RESERVA", today, "20:00", "García", { people: 4 });
-  await ev("RESERVA", today, "20:30", "Puig", { people: 2 });
-  await ev("RESERVA", today, "21:00", "Cumpleaños Laura", { people: 8, detail: "Traen torta" });
-  await ev("RESERVA", today, "21:30", "Fernández", { people: 3 });
-  await ev("TAKEAWAY", today, "19:30", "Pedido #421", { detail: "2 × Muzza, 1 × Fugazzeta, 1 × Fainá" });
-  await ev("TAKEAWAY", today, "21:15", "Pedido #422", { detail: "1 × Napolitana, 2 × Empanadas de carne" });
 
   // Mañana (la escena de la especificación)
   await ev("ENTREGA", tomorrow, "19:00", "Bebidas", { responsibleId: u.Eva });
-  await ev("RESERVA", tomorrow, "20:00", "Martínez", { people: 4 });
-  await ev("RESERVA", tomorrow, "21:00", "Soler", { people: 6 });
-  await ev("TAKEAWAY", tomorrow, "20:45", "Pedido #430", { detail: "3 × Muzza, 1 × Calabresa" });
 
   const task = (data: Parameters<typeof db.task.create>[0]["data"]) => db.task.create({ data });
   await task({ title: "8 kg de masa", kind: "PRODUCCION", area: "COCINA", quantity: 8, unit: "kg", date: toDbDate(today), dueTime: "18:30", priority: "ALTA", createdById: u.Gian });
@@ -193,6 +193,81 @@ async function main() {
     ["Martín", "Sí, sin problema. Cobramos servicio de torta de 2€ por persona.", 55],
     ["Eva", "Perfecto, les aviso.", 20],
   ]);
+
+  // ── Fase 3: carta, clientes, reservas y pedidos para llevar
+  await db.restaurantSettings.create({
+    data: { id: "default", closedDays: [1], services: ["13:00-15:30", "19:30-23:30"], phone: "+34 930 000 000", address: "Carrer de Pichuco 1, Barcelona" },
+  });
+  const menu: [string, string, string, number, boolean][] = [
+    ["PIZZA", "Muzza", "Salsa de tomate, mozzarella, orégano y aceitunas.", 12.5, true],
+    ["PIZZA", "Fugazzeta", "Rellena de mozzarella con cebolla gratinada.", 15, true],
+    ["PIZZA", "Napolitana", "Muzza con tomate en rodajas, ajo y albahaca.", 14, true],
+    ["PIZZA", "Calabresa", "Muzza con longaniza calabresa.", 14.5, true],
+    ["PIZZA", "Jamón y morrones", "Muzza con jamón cocido y pimientos asados.", 15, true],
+    ["FAINA", "Fainá", "La porción para ponerle arriba a la pizza.", 3, false],
+    ["EMPANADA", "Empanada de carne", "Cortada a cuchillo, al horno.", 3.2, false],
+    ["EMPANADA", "Empanada de jamón y queso", "Al horno.", 3, false],
+    ["POSTRE", "Flan con dulce de leche", "Casero.", 5, false],
+    ["BEBIDA", "Cerveza Quilmes", "Botella 340 ml.", 3.5, false],
+    ["BEBIDA", "Agua mineral", "500 ml.", 2, false],
+  ];
+  const M: Record<string, string> = {};
+  for (const [i, [category, name, description, price, isPizza]] of menu.entries())
+    M[name] = (await db.menuItem.create({ data: { category, name, description, price, isPizza, sort: i } })).id;
+  const extras: [string, number][] = [["Extra muzza", 2], ["Jamón", 2.5], ["Huevo frito", 1.5], ["Aceitunas extra", 1], ["Anchoas", 2]];
+  const X: Record<string, string> = {};
+  for (const [i, [name, price]] of extras.entries()) X[name] = (await db.menuExtra.create({ data: { name, price, sort: i } })).id;
+
+  const cust = async (name: string, phone: string, email?: string) =>
+    (await db.customer.create({ data: { name, phone, email, privacyAcceptedAt: new Date() } })).id;
+  const C = {
+    garcia: await cust("Marta García", "+34611000001", "marta.garcia@example.com"),
+    puig: await cust("Jordi Puig", "+34611000002"),
+    laura: await cust("Laura Gómez", "+34611000003", "laura.gomez@example.com"),
+    fernandez: await cust("Pablo Fernández", "+34611000004"),
+    martinez: await cust("Ana Martínez", "+34611000005"),
+    soler: await cust("Núria Soler", "+34611000006"),
+    lopez: await cust("Diego López", "+34611000007"),
+    vidal: await cust("Clara Vidal", "+34611000008"),
+    ruiz: await cust("Sergio Ruiz", "+34611000009"),
+  };
+  let n = 0;
+  const code = () => `DEMO${String(++n).padStart(2, "0")}`;
+  const res = (customerId: string, date: string, time: string, people: number, extra: object = {}) =>
+    db.reservation.create({ data: { code: code(), customerId, date: toDbDate(date), time, people, ...extra } });
+  await res(C.garcia, today, "20:00", 4);
+  await res(C.puig, today, "20:30", 2);
+  await res(C.laura, today, "21:00", 8, { notes: "Cumpleaños, traen torta", source: "TELEFONO" });
+  await res(C.fernandez, today, "21:30", 3);
+  await res(C.vidal, tomorrow, "13:30", 6);
+  await res(C.ruiz, tomorrow, "14:00", 4);
+  await res(C.martinez, tomorrow, "20:00", 4);
+  await res(C.soler, tomorrow, "21:00", 6);
+  await res(C.lopez, tomorrow, "21:30", 8, { notes: "Despedida" });
+  await res(C.garcia, tomorrow, "22:00", 5);
+  // Historial: los domingos anteriores (para comparar la demanda)
+  for (const w of [1, 2, 3, 4]) {
+    const d = addDays(tomorrow, -7 * w);
+    await res(C.puig, d, "20:30", 4, { status: "SENTADA" });
+    await res(C.soler, d, "21:00", 6, { status: "SENTADA" });
+    await res(C.martinez, d, "21:30", 5, { status: "SENTADA" });
+    await res(C.ruiz, d, "13:30", 4, { status: "SENTADA" });
+  }
+
+  await db.$executeRawUnsafe(`ALTER SEQUENCE "TakeawayOrder_number_seq" RESTART WITH 421`);
+  const tk = (customerId: string, date: string, time: string, lines: [string, number, string[]?][], extra: object = {}) => {
+    const rows = lines.map(([name, quantity, ex = []]) => {
+      const item = menu.find((m) => m[1] === name)!;
+      const exs = ex.map((e) => ({ name: e, price: extras.find((x) => x[0] === e)![1] }));
+      return { menuItemId: M[name], name, quantity, unitPrice: item[3] + exs.reduce((a, e) => a + e.price, 0), extras: exs.length ? exs : undefined };
+    });
+    const total = Math.round(rows.reduce((a, r) => a + r.quantity * r.unitPrice, 0) * 100) / 100;
+    return db.takeawayOrder.create({ data: { code: code(), customerId, date: toDbDate(date), time, total, lines: { create: rows }, ...extra } });
+  };
+  await tk(C.lopez, today, "19:30", [["Muzza", 2], ["Fugazzeta", 1], ["Fainá", 1]], { status: "CONFIRMADO", paymentMethod: "ONLINE", paymentStatus: "PAGADO", paymentRef: "demo" });
+  await tk(C.vidal, today, "21:15", [["Napolitana", 1, ["Extra muzza"]], ["Empanada de carne", 2]]);
+  await tk(C.ruiz, tomorrow, "20:45", [["Muzza", 3], ["Calabresa", 1]]);
+  await tk(C.fernandez, tomorrow, "21:00", [["Jamón y morrones", 2], ["Fugazzeta", 1]], { status: "CONFIRMADO", paymentMethod: "ONLINE", paymentStatus: "PAGADO", paymentRef: "demo" });
 
   console.log(`Seed listo (${today}). Usuarios: ${USERS.map((x) => x.email).join(", ")}`);
 }
