@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUserPage } from "@/lib/auth";
-import { ROLE_LABEL } from "@/lib/permissions";
+import { can, ROLE_LABEL } from "@/lib/permissions";
 import { unreadCount } from "@/lib/services/notifications";
 import { Avatar } from "@/components/Avatar";
 import { BottomNav } from "@/components/BottomNav";
@@ -25,14 +25,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/equipo#yo" aria-label="Mi perfil">
             <Avatar name={user.name} color={user.avatarColor} />
           </Link>
-          <Link href="/chat" className="bell" aria-label={`Avisos${unread ? ` (${unread} sin leer)` : ""}`}>
+          <Link href="/chat?tab=avisos" className="bell" aria-label={`Avisos${unread ? ` (${unread} sin leer)` : ""}`}>
             <Icon name="bell" />
             {unread > 0 && <span className="badge">{unread}</span>}
           </Link>
         </header>
         {children}
       </div>
-      <BottomNav />
+      <BottomNav showStock={can(user, "stock")} />
     </>
   );
 }

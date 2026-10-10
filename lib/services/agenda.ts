@@ -109,20 +109,43 @@ export async function greeting(actor: Actor) {
   if (prod.length) bits.push(`${prod.length} ${prod.length === 1 ? "producción pendiente" : "producciones pendientes"}`);
   for (const d of s.deliveries) bits.push(`una entrega de ${d.title.replace(/^entrega( de)?\s*/i, "").toLowerCase()} a las ${d.time}`);
 
+  const extra: string[] = [];
+  if (can(actor, "compras_aprobar")) {
+    const n = await db.purchaseOrder.count({ where: { status: "PENDIENTE_APROBACION" } });
+    if (n) extra.push(`Tenés ${n} ${n === 1 ? "compra" : "compras"} para aprobar.`);
+  }
+  if (can(actor, "stock")) {
+    const low = (await db.product.findMany({ where: { active: true } })).filter((p) => p.minStock > 0 && p.stock < p.minStock);
+    if (low.length)
+      extra.push(
+        low.length === 1
+          ? `${low[0].name} está por debajo del mínimo.`
+          : `${low.length} productos están por debajo del mínimo (${low.slice(0, 2).map((p) => p.name.toLowerCase()).join(", ")}${low.length > 2 ? "…" : ""}).`,
+      );
+  }
   const mine = s.staff.find((p) => p.userId === actor.id);
   const shift = mine ? (mine.absent ? " Hoy figurás como ausente." : ` Tu turno: ${mine.effectiveStart}–${mine.end}.`) : "";
   const list = bits.length > 1 ? `${bits.slice(0, -1).join(", ")} y ${bits.at(-1)}` : bits[0];
   return {
-    text: `${hello}, ${actor.shortName}!\n\n${list ? `Hoy tenemos ${list}.` : "Hoy está tranquilo por ahora."}${shift}\n\n¿Querés ver el detalle o crear alguna tarea?`,
+    text: `${hello}, ${actor.shortName}!\n\n${list ? `Hoy tenemos ${list}.` : "Hoy está tranquilo por ahora."}${shift}${extra.length ? "\n\n" + extra.join(" ") : ""}\n\n¿Querés ver el detalle o crear alguna tarea?`,
     schedule: s,
   };
 }
 
 /** Pendientes del usuario: tareas abiertas, comunicados sin leer, incidencias próximas. */
 export async function getPendingItems(actor: Actor) {
-  const [tasks, unread] = await Promise.all([
+  const [tasks, unread, approvals, low] = await Promise.all([
     listTasks(actor, { status: "ABIERTAS", mine: !can(actor, "tareas_todas") }),
     db.announcement.findMany({ where: { reads: { none: { userId: actor.id } } }, select: { title: true, level: true } }),
+    can(actor, "compras_aprobar")
+      ? db.purchaseOrder.findMany({ where: { status: "PENDIENTE_APROBACION" }, include: { supplier: true }, orderBy: { createdAt: "asc" } })
+      : Promise.resolve([]),
+    can(actor, "stock") ? db.product.findMany({ where: { active: true } }).then((ps) => ps.filter((p) => p.minStock > 0 && p.stock < p.minStock)) : Promise.resolve([]),
   ]);
-  return { tasks, unreadAnnouncements: unread };
+  return {
+    tasks,
+    unreadAnnouncements: unread,
+    approvals: approvals.map((o) => ({ number: o.number, supplier: o.supplier.name, total: o.total })),
+    lowStock: low.map((p) => p.name),
+  };
 }

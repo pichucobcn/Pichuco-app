@@ -10,12 +10,13 @@ const ITEMS = [
   { href: "/equipo", label: "Equipo", icon: "users" },
 ];
 
-export function BottomNav() {
+export function BottomNav({ showStock = true }: { showStock?: boolean }) {
   const path = usePathname();
+  const items = ITEMS.filter((i) => showStock || i.href !== "/stock");
   return (
     <nav className="bottom-nav" aria-label="Navegación principal">
-      <ul>
-        {ITEMS.map((i) => {
+      <ul style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
+        {items.map((i) => {
           const active = i.href === "/" ? path === "/" : path.startsWith(i.href);
           return (
             <li key={i.href}>

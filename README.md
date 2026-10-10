@@ -2,7 +2,24 @@
 
 Centro operativo de **Pichuco Pizzería Porteña**. *Hablale a Pichuco. Pichuco se encarga.*
 
-Prototipo de la **Fase 1**: login, usuarios y roles, Home, Pichuco AI (lenguaje natural → acciones), Fichar, Tareas, Producción, Comunicados, Agenda básica y Equipo.
+Prototipo con:
+
+- **Fase 1**: login, usuarios y roles, Home, Pichuco AI (lenguaje natural → acciones), Fichar, Tareas, Producción, Comunicados, Agenda y Equipo.
+- **Fase 2**: Stock, Proveedores, Compras con reglas de aprobación y Chat del equipo.
+
+### Compras y aprobaciones
+
+Estados: Borrador → Pendiente de aprobación → Aprobado → Enviado → Confirmado → Entregado (o Cancelado).
+
+- Hasta el límite automático (100 € por defecto, o el límite propio de cada persona) el pedido se aprueba solo.
+- Hasta el límite del jefe (300 €) lo aprueba Martín (también desde Pichuco AI).
+- Por encima, o en categorías marcadas como sensibles, la aprobación es obligatoria y **sólo desde la pantalla del pedido**.
+- Las reglas se editan en Compras → Reglas de aprobación.
+- El envío al proveedor abre WhatsApp o el correo con el pedido ya escrito (no hay integraciones automáticas todavía). Al confirmar el proveedor, la entrega aparece en la Agenda; al recibirla, se suma al stock y se guarda el último precio.
+
+### Chat del equipo
+
+Conversaciones 1 a 1 y grupos, respuestas, fotos y archivos (hasta 5 MB, guardados en la base de datos). Los mensajes nuevos se consultan cada 4 segundos.
 
 ## Stack
 
@@ -55,6 +72,5 @@ public/brand/        logo y personaje (provisionales)
 
 ## Próximas fases
 
-- **Fase 2**: compras, stock, proveedores, automatización de pedidos, chat interno.
 - **Fase 3**: reservas de mesa y pedidos para llevar públicos, clientes, pagos.
 - **Fase 4**: agente de compras, WhatsApp Business, email, voz, análisis y predicción.

@@ -1,0 +1,107 @@
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
+import { db } from "../lib/db";
+import { localAgent } from "../lib/ai/local";
+import { executeTool } from "../lib/ai/tools";
+import { approveOrder, createOrder, decideApproval, markSent, receiveOrder, confirmOrder } from "../lib/services/purchases";
+import { createConversation, listMessages, sendMessage, getAttachment } from "../lib/services/chat";
+import { adjustStock, listProducts } from "../lib/services/stock";
+
+before(() => execSync("npx tsx prisma/seed.ts", { stdio: "ignore" }));
+after(() => db.$disconnect());
+
+const user = (email: string) => db.user.findUniqueOrThrow({ where: { email } });
+
+test("reglas de aprobación: automático, jefe y obligatoria", async () => {
+  const gian = await user("gian@pichuco.es");
+  assert.equal((await decideApproval(gian, 80, ["Lácteos"])).level, "AUTO");
+  assert.equal((await decideApproval(gian, 150, ["Lácteos"])).level, "JEFE");
+  assert.equal((await decideApproval(gian, 350, ["Lácteos"])).level, "OBLIGATORIA");
+  assert.equal((await decideApproval(gian, 20, ["Equipamiento"])).level, "JEFE"); // categoría sensible
+});
+
+test("límite por persona: Gian con 200 € compra 150 € sin aprobación", async () => {
+  await db.user.update({ where: { email: "gian@pichuco.es" }, data: { purchaseAutoLimit: 200 } });
+  const gian = await user("gian@pichuco.es");
+  assert.equal((await decideApproval(gian, 150, ["Lácteos"])).level, "AUTO");
+  await db.user.update({ where: { email: "gian@pichuco.es" }, data: { purchaseAutoLimit: null } });
+});
+
+test("Pichuco AI prepara el pedido de mozzarella y pide aprobación a Martín", async () => {
+  const gian = await user("gian@pichuco.es");
+  const r = await localAgent(gian, "Comprá 15 kilos de mozzarella");
+  assert.match(r.text, /Lácteos del Montseny/);
+  assert.match(r.text, /€117,00/);
+  assert.match(r.text, /aprobación de Martín/);
+  const o = await db.purchaseOrder.findFirstOrThrow({ where: { createdById: gian.id, createdByAi: true }, orderBy: { number: "desc" } });
+  assert.equal(o.status, "PENDIENTE_APROBACION");
+  const martin = await user("martin@pichuco.es");
+  assert.ok(await db.notification.findFirst({ where: { userId: martin.id, title: "Compra para aprobar", link: `/compras/${o.number}` } }));
+  // Martín lo aprueba hablando con Pichuco
+  const a = await localAgent(martin, `Aprobá el pedido ${o.number}`);
+  assert.match(a.text, /Aprobado/);
+});
+
+test("un cocinero no puede pedir: Pichuco se lo pasa a Gian", async () => {
+  const jp = await user("juanpablo@pichuco.es");
+  const r = await localAgent(jp, "Comprá 5 kg de cebolla");
+  assert.match(r.text, /Gian/);
+  assert.equal(await db.purchaseOrder.count({ where: { createdById: jp.id } }), 0);
+  await assert.rejects(createOrder(jp, { lines: [{ productName: "cebolla", quantity: 5 }] }), /permiso/);
+});
+
+test("Pichuco AI no puede aprobar compras por encima del límite del jefe", async () => {
+  const gian = await user("gian@pichuco.es");
+  const martin = await user("martin@pichuco.es");
+  const { order } = await createOrder(gian, { lines: [{ productName: "Malbec", quantity: 8 }] }); // 8 × 45 = 360 €
+  assert.equal(order.status, "PENDIENTE_APROBACION");
+  const viaAi = await executeTool(martin, "approve_purchase_order", { order_number: order.number }, { viaAi: true });
+  assert.equal(viaAi.isError, true);
+  assert.match(viaAi.content, /pantalla del pedido/);
+  const ok = await approveOrder(martin, order.number); // desde la app sí
+  assert.equal(ok.status, "APROBADO");
+});
+
+test("ciclo completo: enviar, confirmar (Agenda) y recibir suma al stock", async () => {
+  const gian = await user("gian@pichuco.es");
+  const before = (await listProducts(gian)).find((p) => p.name === "Peceto (milanesas)")!;
+  const { order, approved } = await createOrder(gian, { lines: [{ productName: "peceto", quantity: 5 }] }); // 74,50 €
+  assert.equal(approved, true);
+  await markSent(gian, order.number, "WHATSAPP");
+  await confirmOrder(gian, order.number, { deliveryDate: "2026-10-13", deliveryTime: "12:00" });
+  assert.ok(await db.agendaEvent.findUnique({ where: { purchaseOrderId: order.id } }));
+  await receiveOrder(gian, order.number, { received: { [order.lines[0].id]: 4 } });
+  const after = await db.product.findUniqueOrThrow({ where: { id: before.id } });
+  assert.equal(after.stock, before.stock + 4);
+  assert.ok(await db.stockMovement.findFirst({ where: { productId: before.id, reason: "ENTRADA_PEDIDO", delta: 4 } }));
+});
+
+test("stock: Eva no puede ver ni tocar el stock", async () => {
+  const eva = await user("eva@pichuco.es");
+  await assert.rejects(listProducts(eva), /permiso/);
+  const p = await db.product.findFirstOrThrow();
+  await assert.rejects(adjustStock(eva, p.id, { delta: -1 }), /permiso/);
+});
+
+test("¿qué falta comprar? lista lo que está bajo mínimo", async () => {
+  const gian = await user("gian@pichuco.es");
+  const r = await localAgent(gian, "¿Qué falta comprar?");
+  assert.match(r.text, /Harina 00/);
+});
+
+test("chat: sólo los miembros leen la conversación y sus adjuntos", async () => {
+  const martin = await user("martin@pichuco.es");
+  const eva = await user("eva@pichuco.es");
+  const jp = await user("juanpablo@pichuco.es");
+  const c = await createConversation(martin, { memberIds: [eva.id] });
+  const again = await createConversation(eva, { memberIds: [martin.id] });
+  assert.equal(again.id, c.id); // el 1 a 1 se reutiliza
+  const msg = await sendMessage(martin, c.id, { body: "Foto de la reserva" }, { name: "r.png", mime: "image/png", data: Buffer.from([137, 80, 78, 71]) });
+  const list = await listMessages(eva, c.id);
+  assert.ok(list.some((m) => m.id === msg.id && m.attachment));
+  await assert.rejects(listMessages(jp, c.id), /no encontrada/);
+  const att = list.find((m) => m.id === msg.id)!.attachment!;
+  await assert.rejects(getAttachment(jp, att.id), /acceso/);
+  await assert.rejects(sendMessage(martin, c.id, { body: "" }, { name: "x.html", mime: "text/html", data: Buffer.from("<b>") }), /no permitido/);
+});

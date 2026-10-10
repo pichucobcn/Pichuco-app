@@ -7,26 +7,32 @@ import { listTasks } from "@/lib/services/tasks";
 import { currentJourney } from "@/lib/services/clock";
 import { can } from "@/lib/permissions";
 import { todayISO } from "@/lib/dates";
+import { db } from "@/lib/db";
+import { unreadChats } from "@/lib/services/chat";
 import { Icon } from "@/components/Icon";
 import { PichucoChat } from "@/components/PichucoChat";
 
 export default async function Home() {
   const user = await requireUserPage();
-  const [g, unread, openToday, journey] = await Promise.all([
+  const [g, unread, openToday, journey, chats, toApprove, toSend] = await Promise.all([
     greeting(user),
     unreadAnnouncements(user),
     listTasks(user, { date: todayISO(), status: "ABIERTAS", mine: !can(user, "tareas_todas") }),
     currentJourney(user),
+    unreadChats(user),
+    can(user, "compras_aprobar") ? db.purchaseOrder.count({ where: { status: "PENDIENTE_APROBACION" } }) : Promise.resolve(0),
+    can(user, "compras") ? db.purchaseOrder.count({ where: { status: "APROBADO" } }) : Promise.resolve(0),
   ]);
+  const comprasSub = toApprove ? `${toApprove} para aprobar` : toSend ? `${toSend} para enviar` : "Pedidos y proveedores";
   const mode = aiMode();
   const clockLabel = journey.state === "fuera" ? "Entrada / Salida" : journey.state === "en pausa" ? "En pausa" : "Trabajando";
 
   const modules = [
     { href: "/fichar", icon: "clock", title: "Fichar", sub: clockLabel, sub2: "Pausas", badge: 0 },
-    { href: "/compras", icon: "cart", title: "Compras", sub: "Pedidos y proveedores", badge: 0 },
+    { href: "/compras", icon: "cart", title: "Compras", sub: comprasSub, badge: toApprove + toSend },
     { href: "/tareas", icon: "tasks", title: "Tareas", sub: "Producción y pendientes", badge: openToday.length },
     { href: "/comunicados", icon: "megaphone", title: "Comunicados", sub: "Avisos del equipo", badge: unread },
-    { href: "/chat", icon: "chat", title: "Chat", sub: "Mensajes del equipo", badge: 0 },
+    { href: "/chat", icon: "chat", title: "Chat", sub: chats ? `${chats} sin leer` : "Mensajes del equipo", badge: chats },
   ];
 
   return (

@@ -30,6 +30,8 @@ model User {
   area        Area     @default(GENERAL)
   avatarColor String   @default("#351a17")
   active      Boolean  @default(true)
+  /// Límite propio de compra automática (€). Si es null se usa el general.
+  purchaseAutoLimit Float?
   createdAt   DateTime @default(now())
 
   sessions          Session[]
@@ -47,6 +49,12 @@ model User {
   aiMessages        AiMessage[]
   auditLogs         AuditLog[]
   responsibleEvents AgendaEvent[]      @relation("EventResponsible")
+  stockMovements    StockMovement[]
+  createdOrders     PurchaseOrder[]    @relation("OrderCreator")
+  approvedOrders    PurchaseOrder[]    @relation("OrderApprover")
+  orderEvents       PurchaseOrderEvent[]
+  chatMemberships   ConversationMember[]
+  chatMessages      ChatMessage[]
 }
 
 model Session {
@@ -220,6 +228,9 @@ model AgendaEvent {
   detail        String?
   responsibleId String?
   responsible   User?     @relation("EventResponsible", fields: [responsibleId], references: [id])
+  /// Entrega generada por un pedido de compra confirmado
+  purchaseOrderId String?   @unique
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())
 }
 
@@ -256,4 +267,188 @@ model AuditLog {
   input     String?
   data      Json?
   createdAt DateTime @default(now())
+}
+
+// ─────────────────────────── Fase 2: stock, proveedores y compras
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  contactName   String?
+  phone         String?
+  whatsapp      String?
+  email         String?
+  /// Horario de atención, texto libre ("L–V 7:00–14:00")
+  hours         String?
+  /// Días de reparto: 0=domingo … 6=sábado
+  deliveryDays  Int[]
+  deliveryTime  String?
+  minOrder      Float?
+  conditions    String?
+  /// Canal preferido para enviar pedidos: WHATSAPP, EMAIL, TELEFONO
+  channel       String   @default("WHATSAPP")
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  products      Product[]
+  orders        PurchaseOrder[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  category     String
+  unit         String
+  stock        Float    @default(0)
+  minStock     Float    @default(0)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  usualPrice   Float?
+  lastPrice    Float?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  movements    StockMovement[]
+  orderLines   PurchaseOrderLine[]
+}
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  delta      Float
+  stockAfter Float
+  /// ENTRADA_PEDIDO, AJUSTE, CONSUMO, MERMA
+  reason     String
+  note       String?
+  unitPrice  Float?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  orderId    String?
+  createdAt  DateTime @default(now())
+}
+
+enum OrderStatus {
+  BORRADOR
+  PENDIENTE_APROBACION
+  APROBADO
+  ENVIADO
+  CONFIRMADO
+  ENTREGADO
+  CANCELADO
+}
+
+model PurchaseOrder {
+  id            String      @id @default(cuid())
+  number        Int         @unique @default(autoincrement())
+  supplierId    String
+  supplier      Supplier    @relation(fields: [supplierId], references: [id])
+  status        OrderStatus @default(BORRADOR)
+  total         Float       @default(0)
+  /// Por qué necesita (o no) aprobación, para mostrarlo y auditarlo
+  approvalNote  String?
+  deliveryDate  DateTime?   @db.Date
+  deliveryTime  String?
+  notes         String?
+  createdById   String
+  createdBy     User        @relation("OrderCreator", fields: [createdById], references: [id])
+  createdByAi   Boolean     @default(false)
+  approvedById  String?
+  approvedBy    User?       @relation("OrderApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  sentAt        DateTime?
+  sentVia       String?
+  confirmedAt   DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lines         PurchaseOrderLine[]
+  events        PurchaseOrderEvent[]
+  agendaEvent   AgendaEvent?
+}
+
+model PurchaseOrderLine {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  quantity  Float
+  unitPrice Float
+}
+
+/// Historial de cada pedido: quién hizo qué y cuándo.
+model PurchaseOrderEvent {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  text      String
+  viaAi     Boolean       @default(false)
+  createdAt DateTime      @default(now())
+}
+
+/// Reglas de aprobación de compras (una sola fila, id = "default").
+model PurchasePolicy {
+  id                 String   @id @default("default")
+  /// Hasta este importe la compra se aprueba sola
+  autoLimit          Float    @default(100)
+  /// Hasta este importe se pide aprobación al jefe; por encima es obligatoria y sólo desde la app
+  managerLimit       Float    @default(300)
+  /// Categorías que siempre requieren aprobación
+  alwaysApprove      String[]
+  updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────── Fase 2: chat del equipo
+
+model Conversation {
+  id        String   @id @default(cuid())
+  /// null en conversaciones 1 a 1
+  name      String?
+  isGroup   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+  members   ConversationMember[]
+  messages  ChatMessage[]
+}
+
+model ConversationMember {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+
+  @@id([conversationId, userId])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id])
+  body           String
+  replyToId      String?
+  replyTo        ChatMessage? @relation("Replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        ChatMessage[] @relation("Replies")
+  attachment     ChatAttachment?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// Fotos y archivos del chat. Se guardan en la base para no depender de un
+/// disco local (pensado para hosting sin almacenamiento persistente).
+model ChatAttachment {
+  id        String      @id @default(cuid())
+  messageId String      @unique
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  name      String
+  mime      String
+  size      Int
+  data      Bytes
 }

@@ -10,6 +10,17 @@ import { notify } from "../services/notifications";
 import { audit } from "../services/audit";
 import { completeTask, createTask, describeTask, listTasks, updateTask } from "../services/tasks";
 import { findUserByName, teamOverview } from "../services/team";
+import { findProduct, fmtEur, fmtQty, isLow, listProducts, lowStock, suggestedQuantity } from "../services/stock";
+import { findSupplier, DAY_SHORT } from "../services/suppliers";
+import {
+  approveOrder,
+  createOrder,
+  listOrders,
+  orderSummary,
+  receiveOrder,
+  STATUS_LABEL,
+  type OrderWithRelations,
+} from "../services/purchases";
 
 /**
  * Herramientas de Pichuco AI. El modelo NUNCA toca la base de datos: sólo
@@ -69,6 +80,19 @@ const taskProps = {
   due_time: { type: "string", description: "Hora límite HH:MM" },
   priority: { type: "string", enum: ["BAJA", "MEDIA", "ALTA"] },
 } as const;
+
+function orderView(o: OrderWithRelations) {
+  return {
+    number: o.number,
+    supplier: o.supplier.name,
+    status: STATUS_LABEL[o.status],
+    total: fmtEur(o.total),
+    items: orderSummary(o),
+    delivery: o.deliveryDate ? `${fromDbDate(o.deliveryDate)}${o.deliveryTime ? " " + o.deliveryTime : ""}` : null,
+    approvalNote: o.approvalNote,
+    createdBy: o.createdBy.shortName,
+  };
+}
 
 export const TOOLS: Record<string, ToolDef> = {
   get_today_summary: {
@@ -352,6 +376,144 @@ export const TOOLS: Record<string, ToolDef> = {
       return { result: (await getSchedule(actor, i.date)).takeaway };
     },
   },
+  get_stock: {
+    description: "Stock actual de un producto (o de todos si no se indica): cantidad, mínimo, proveedor habitual y último precio.",
+    schema: z.object({ product: z.string().optional() }),
+    input_schema: { type: "object", properties: { product: { type: "string", description: "Nombre del producto, p. ej. 'mozzarella'" } } },
+    mutates: false,
+    run: async (actor, i) => {
+      const view = (p: Awaited<ReturnType<typeof listProducts>>[number]) => ({
+        name: p.name,
+        stock: fmtQty(p.stock, p.unit),
+        min: fmtQty(p.minStock, p.unit),
+        low: isLow(p),
+        suggestedOrder: isLow(p) ? fmtQty(suggestedQuantity(p), p.unit) : null,
+        supplier: p.supplier?.name ?? null,
+        lastPrice: p.lastPrice != null ? `${fmtEur(p.lastPrice)}/${p.unit}` : null,
+      });
+      const all = await listProducts(actor);
+      if (!i.product) return { result: all.map(view) };
+      const found = await findProduct(i.product);
+      const p = found && all.find((x) => x.id === found.id);
+      if (!p) throw new Error(`No encuentro "${i.product}" en el stock.`);
+      return { result: view(p) };
+    },
+  },
+  get_low_stock: {
+    description: "Productos por debajo del stock mínimo, con la cantidad sugerida para pedir y su proveedor.",
+    schema: z.object({}),
+    input_schema: { type: "object", properties: {} },
+    mutates: false,
+    run: async (actor) => ({
+      result: (await lowStock(actor)).map((p) => ({
+        name: p.name,
+        stock: fmtQty(p.stock, p.unit),
+        min: fmtQty(p.minStock, p.unit),
+        suggestedOrder: suggestedQuantity(p),
+        unit: p.unit,
+        supplier: p.supplier?.name ?? null,
+      })),
+    }),
+  },
+  get_supplier: {
+    description: "Datos de un proveedor (por nombre o por producto que vende): contacto, días y hora de reparto, pedido mínimo, condiciones.",
+    schema: z.object({ name: z.string() }),
+    input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    mutates: false,
+    run: async (actor, i) => {
+      if (!can(actor, "proveedores") && !can(actor, "compras")) throw new ForbiddenError("No tenés acceso a proveedores.");
+      const s = await findSupplier(i.name);
+      if (!s) throw new Error(`No encuentro el proveedor "${i.name}".`);
+      return {
+        result: {
+          name: s.name,
+          contact: s.contactName,
+          phone: s.phone,
+          email: s.email,
+          hours: s.hours,
+          deliveryDays: s.deliveryDays.map((d) => DAY_SHORT[d]).join(", "),
+          deliveryTime: s.deliveryTime,
+          minOrder: s.minOrder != null ? fmtEur(s.minOrder) : null,
+          conditions: s.conditions,
+          products: s.products.map((p) => p.name),
+        },
+      };
+    },
+  },
+  create_purchase_order: {
+    description:
+      "Prepara un pedido de compra a un proveedor. Busca el proveedor habitual, usa el último precio y aplica las reglas de aprobación (automático, aprobación del jefe u obligatoria). NO envía nada al proveedor ni gasta: el envío se hace desde la app.",
+    schema: z.object({
+      items: z.array(z.object({ product: z.string(), quantity: z.number().positive() })).min(1),
+      supplier: z.string().optional(),
+      delivery_date: optDate.optional(),
+      notes: z.string().optional(),
+    }),
+    input_schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { product: { type: "string" }, quantity: { type: "number", description: "En la unidad del producto (kg, l, cajas…)" } },
+            required: ["product", "quantity"],
+          },
+        },
+        supplier: { type: "string", description: "Opcional; si no, el proveedor habitual del producto." },
+        delivery_date: { ...dateProp, description: "Para cuándo se necesita (YYYY-MM-DD). Opcional: si no, el próximo día de reparto." },
+        notes: { type: "string" },
+      },
+      required: ["items"],
+    },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const r = await createOrder(
+        actor,
+        {
+          supplierName: i.supplier,
+          lines: i.items.map((x: { product: string; quantity: number }) => ({ productName: x.product, quantity: x.quantity })),
+          deliveryDate: i.delivery_date,
+          notes: i.notes,
+        },
+        ctx,
+      );
+      return {
+        result: { ...orderView(r.order), approved: r.approved, approvalLevel: r.decision.level },
+        summary: `Preparó el pedido #${r.order.number} a ${r.order.supplier.name}: ${orderSummary(r.order)} — ${fmtEur(r.order.total)}. ${r.order.approvalNote}`,
+      };
+    },
+  },
+  get_purchase_orders: {
+    description: "Pedidos de compra: abiertos (por defecto), pendientes de aprobación, etc.",
+    schema: z.object({ status: z.enum(["ABIERTOS", "PENDIENTE_APROBACION", "APROBADO", "ENVIADO", "CONFIRMADO", "ENTREGADO"]).optional() }),
+    input_schema: {
+      type: "object",
+      properties: { status: { type: "string", enum: ["ABIERTOS", "PENDIENTE_APROBACION", "APROBADO", "ENVIADO", "CONFIRMADO", "ENTREGADO"] } },
+    },
+    mutates: false,
+    run: async (actor, i) => ({ result: (await listOrders(actor, { status: i.status ?? "ABIERTOS" })).slice(0, 20).map(orderView) }),
+  },
+  approve_purchase_order: {
+    description: "Aprueba un pedido pendiente (sólo el jefe). Los pedidos por encima del límite del jefe sólo se aprueban desde la pantalla del pedido.",
+    schema: z.object({ order_number: z.number().int().positive() }),
+    input_schema: { type: "object", properties: { order_number: { type: "integer" } }, required: ["order_number"] },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const o = await approveOrder(actor, i.order_number, ctx);
+      return { result: orderView(o), summary: `Aprobó el pedido #${o.number} (${fmtEur(o.total)})` };
+    },
+  },
+  receive_purchase_order: {
+    description: "Registra que llegó un pedido: suma las cantidades al stock y actualiza el último precio. Usar cuando digan 'llegó la harina' o 'llegó el pedido 12'.",
+    schema: z.object({ order_number: z.number().int().positive() }),
+    input_schema: { type: "object", properties: { order_number: { type: "integer" } }, required: ["order_number"] },
+    mutates: true,
+    run: async (actor, i, ctx) => {
+      const o = await receiveOrder(actor, i.order_number, {}, ctx);
+      return { result: orderView(o), summary: `Registró la entrega del pedido #${o.number} y sumó al stock: ${orderSummary(o)}` };
+    },
+  },
   get_pending_items: {
     description: "Pendientes del usuario: tareas abiertas y comunicados sin leer.",
     schema: z.object({}),
@@ -359,7 +521,7 @@ export const TOOLS: Record<string, ToolDef> = {
     mutates: false,
     run: async (actor) => {
       const p = await getPendingItems(actor);
-      return { result: { tasks: p.tasks.slice(0, 30).map(taskView), unreadAnnouncements: p.unreadAnnouncements } };
+      return { result: { tasks: p.tasks.slice(0, 30).map(taskView), unreadAnnouncements: p.unreadAnnouncements, approvals: p.approvals, lowStock: p.lowStock } };
     },
   },
 };

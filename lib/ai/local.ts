@@ -120,22 +120,85 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     return { text, actions };
   }
 
-  // 3) Compras (Fase 2): se anota como tarea administrativa para el jefe.
-  if (/\b(compr[aá]|comprar|ped[ií]|ped[ií]le|necesitamos)(?![a-zñáéíóú])/.test(t) && /\d/.test(t)) {
-    const what = stripDateWords(input.replace(/^.*?\b(compr[aá]r?|ped[ií](le)?( al proveedor)?|necesitamos)(?![a-zñáéíóú])\s*/i, ""));
-    const r = await call(actor, input, actions, "create_task", {
-      title: `Comprar ${what}`,
-      kind: "ADMINISTRATIVA",
-      area: "ADMIN",
-      date,
-      priority: "ALTA",
-      ...(can(actor, "tareas_crear") ? { assignee_name: "Martín" } : {}),
+  // 3) Compras: "Comprá 15 kilos de mozzarella", "Necesitamos 20 kg de harina para mañana"
+  if (/\b(compr[aá]|comprar|ped[ií]|ped[ií]le|necesitamos|hace falta)(?![a-zñáéíóú])/.test(t) && /\d/.test(t)) {
+    const rest = stripDateWords(t.replace(/^.*?\b(compr[aá]r?|ped[ií](le)?( al proveedor)?|necesitamos|hace falta)(?![a-zñáéíóú])\s*/, ""));
+    const m = rest.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|l|litros?|cajas?|unidades?|u|sacos?|botellas?|latas?|bandejas?)?\s*(?:de\s+)?(.+)$/);
+    const product = m ? m[3].replace(/\s+(al|a|para)\s+.*$/, "").trim() : rest;
+    const quantity = m ? num(m[1]) : NaN;
+    if (!can(actor, "compras")) {
+      const r = await call(actor, input, actions, "send_team_message", {
+        recipients: ["Gian"],
+        message: `${actor.shortName} pide comprar ${rest}${parseSpanishDate(t, today) ? ` para ${relativeDay(date)}` : ""}.`,
+      });
+      if (!r.ok) return { text: `No pude avisar: ${r.data.error}`, actions };
+      return { text: `Vos no podés hacer pedidos, así que le pasé el pedido a Gian: “comprar ${rest}”.`, actions };
+    }
+    if (!Number.isFinite(quantity)) return { text: "¿Cuánto hay que pedir? Decime la cantidad, por ejemplo “Comprá 15 kg de mozzarella”.", actions };
+    const r = await call(actor, input, actions, "create_purchase_order", {
+      items: [{ product, quantity }],
+      delivery_date: parseSpanishDate(t, today) ?? undefined,
     });
-    if (!r.ok) return { text: `No pude anotarlo: ${r.data.error}`, actions };
+    if (!r.ok) return { text: `No pude preparar el pedido: ${r.data.error}`, actions };
+    const o = r.data;
+    const state = o.approved
+      ? "Quedó aprobado automáticamente. Para enviarlo al proveedor, abrí el pedido en Compras (WhatsApp o email)."
+      : o.approvalLevel === "OBLIGATORIA"
+        ? "Supera el límite: necesita aprobación obligatoria de Martín desde la app. Ya le avisé."
+        : "Necesita la aprobación de Martín. Ya le avisé.";
     return {
-      text: `El módulo de compras y proveedores llega en la Fase 2, así que todavía no puedo enviar el pedido.\n\nMientras tanto lo dejé anotado como tarea: “Comprar ${what}” para ${relativeDay(date)}.`,
+      text: `Preparé el pedido #${o.number} a ${o.supplier}:\n\n• ${o.items}\n• Coste estimado: ${o.total}\n• Entrega prevista: ${o.delivery ? relativeDay(o.delivery.slice(0, 10)) + (o.delivery.length > 10 ? " a las " + o.delivery.slice(11) : "") : "a confirmar"}\n\n${state}`,
       actions,
     };
+  }
+
+  // 3b) Aprobar: "Aprobá el pedido 12"
+  const approve = t.match(/\baprob[aá](?:r)?\s+(?:el\s+)?pedido\s+(?:n\.?º?\s*|#)?(\d+)/);
+  if (approve) {
+    const r = await call(actor, input, actions, "approve_purchase_order", { order_number: Number(approve[1]) });
+    if (!r.ok) return { text: `No pude aprobarlo: ${r.data.error}`, actions };
+    return { text: `Aprobado el pedido #${r.data.number} a ${r.data.supplier} (${r.data.total}). Ya se puede enviar al proveedor.`, actions };
+  }
+
+  // 3c) Llegó un pedido: "llegó el pedido 12", "llegó la harina"
+  const arrived = t.match(/\b(?:lleg[oó]|llegaron|recibimos|recib[ií])\s+(?:el\s+|la\s+|los\s+|las\s+)?(?:pedido\s+(?:#\s*)?(\d+)|(.+))$/);
+  if (arrived && can(actor, "compras")) {
+    let number = arrived[1] ? Number(arrived[1]) : NaN;
+    if (!Number.isFinite(number)) {
+      const list = await call(actor, input, actions, "get_purchase_orders", { status: "ABIERTOS" });
+      const word = (arrived[2] ?? "").replace(/[.!]$/, "").trim().replace(/s$/, "");
+      const found = (list.data as any[]).find(
+        (o) => ["Pedido enviado", "Confirmado"].includes(o.status) && (o.items.toLowerCase().includes(word) || o.supplier.toLowerCase().includes(word)),
+      );
+      if (!found) return { text: `No encuentro un pedido abierto de “${word}”. Decime el número de pedido.`, actions };
+      number = found.number;
+    }
+    const r = await call(actor, input, actions, "receive_purchase_order", { order_number: number });
+    if (!r.ok) return { text: `No pude registrarlo: ${r.data.error}`, actions };
+    return { text: `Registré la entrega del pedido #${r.data.number} (${r.data.supplier}) y sumé al stock: ${r.data.items}.`, actions };
+  }
+
+  // 3d) Stock: "¿qué falta comprar?", "¿cuánta mozzarella queda?"
+  if (/qu[eé] (falta|hay que) (comprar|pedir)|stock bajo|bajo m[ií]nimo|qu[eé] nos falta/.test(t)) {
+    const r = await call(actor, input, actions, "get_low_stock", {});
+    if (!r.ok) return { text: `No puedo consultarlo: ${r.data.error}`, actions };
+    const list = r.data as any[];
+    if (!list.length) return { text: "Está todo por encima del mínimo. No hace falta comprar nada por ahora.", actions };
+    return {
+      text: `Por debajo del mínimo:\n\n${list.map((p) => `• ${p.name}: ${p.stock} (mínimo ${p.min}). Sugiero pedir ${p.suggestedOrder} ${p.unit}${p.supplier ? ` a ${p.supplier}` : ""}.`).join("\n")}\n\nDecime “Comprá …” y preparo el pedido.`,
+      actions,
+    };
+  }
+  const stockQ = t.match(/\b(?:cu[aá]nt[oa]s?|stock de|queda(?:n)?|hay)\s+(?:de\s+)?([a-záéíóúñ ]+?)(?:\s+(?:queda|quedan|hay|tenemos))?\??$/);
+  if (stockQ && can(actor, "stock") && !/qui[eé]n|tarea|reserva|pedido|personas/.test(t)) {
+    const r = await call(actor, input, actions, "get_stock", { product: stockQ[1].replace(/^(la|el|los|las)\s+/, "").trim() });
+    if (r.ok && r.data.name) {
+      const p = r.data;
+      return {
+        text: `${p.name}: quedan ${p.stock} (mínimo ${p.min}).${p.low ? ` Está por debajo del mínimo: sugiero pedir ${p.suggestedOrder}${p.supplier ? ` a ${p.supplier}` : ""}.` : ""}${p.lastPrice ? ` Último precio: ${p.lastPrice}.` : ""}`,
+        actions,
+      };
+    }
   }
 
   // 4) Avisos a personas concretas
@@ -199,6 +262,9 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     const lines = tasks.map((x) => `• ${x.title}${x.date ? ` (${relativeDay(x.date)}${x.dueTime ? " " + x.dueTime : ""})` : ""}`);
     let text = tasks.length ? `Tenés ${tasks.length} pendientes:\n\n${lines.join("\n")}` : "No tenés tareas pendientes.";
     if (ann.length) text += `\n\nY ${ann.length} ${ann.length === 1 ? "comunicado sin leer" : "comunicados sin leer"}.`;
+    const appr = (r.data.approvals ?? []) as any[];
+    if (appr.length) text += `\n\nCompras para aprobar:\n${appr.map((o) => `• Pedido #${o.number} · ${o.supplier} — €${o.total.toFixed(2).replace(".", ",")}`).join("\n")}`;
+    if (r.data.lowStock?.length) text += `\n\nBajo mínimo: ${r.data.lowStock.join(", ")}.`;
     return { text, actions };
   }
 
@@ -253,7 +319,9 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
       "• “Mañana hay que preparar 10 milanesas.”\n" +
       "• “Avisale a Gian que mañana llega harina a las 18.”\n" +
       "• “¿Qué tenemos mañana?”\n" +
-      "• “¿Quién trabaja esta noche?”",
+      "• “¿Quién trabaja esta noche?”\n" +
+      "• “Comprá 15 kilos de mozzarella.”\n" +
+      "• “¿Qué falta comprar?”",
     actions,
   };
 }

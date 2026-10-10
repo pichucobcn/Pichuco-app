@@ -19,7 +19,8 @@ export const PERMISSIONS = [
   "reservas",
   "takeaway",
   "stock",
-  "compras",
+  "compras", // crear y gestionar pedidos de compra
+  "compras_aprobar", // aprobar pedidos que superan el límite automático
   "proveedores",
   "configuracion",
   "auditoria",
