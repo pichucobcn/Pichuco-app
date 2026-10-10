@@ -91,39 +91,6 @@ public/brand/        logo y personaje (provisionales)
 3. En Vercel: *Add New → Project*, importar este repositorio y añadir las variables `DATABASE_URL`, `DIRECT_URL`, `PICHUCO_DEMO_OTP=1` y `PICHUCO_ACCESS_CODE=<código del equipo>`.
 4. *Deploy*. El script `vercel-build` crea las tablas y, si la base está vacía, carga usuarios, catálogo y datos de prueba (`prisma/ensure-seed.ts`); en despliegues siguientes no toca los datos. Las funciones corren en París (`vercel.json`).
 
-Con `PICHUCO_DEMO_OTP=1` el código de acceso aparece en pantalla y hay botones para entrar como cada usuario. **Quitarlo en producción** y conectar un envío de email real en `app/api/auth/request/route.ts`.
-
-Tests: `npm test` (usan la base de `DATABASE_URL` y la re-siembran).
-
-## Usuarios de prueba
-
-| Persona | Email | Rol |
-|---|---|---|
-| Martín Grossman | martin@pichuco.es | Jefe (acceso completo) |
-| Gian Marcuzzi | gian@pichuco.es | Jefe de cocina |
-| Juan Pablo Buono | juanpablo@pichuco.es | Cocinero |
-| Eva Fort | eva@pichuco.es | Camarera |
-
-Los permisos por rol están en `lib/permissions.ts` y se comprueban en el backend (`lib/services/*`), tanto desde las pantallas como desde Pichuco AI.
-
-## Estructura
-
-```
-app/                 páginas y rutas API (app/api/*)
-components/          UI compartida (PichucoChat, iconos, navegación)
-lib/services/        lógica de negocio + autorización + auditoría
-lib/ai/              Pichuco AI: herramientas, agente Claude, intérprete demo
-prisma/              esquema y datos de prueba
-public/brand/        logo y personaje (provisionales)
-```
-
-## Publicar (Vercel + Neon)
-
-1. En Vercel: *Add New → Project* e importar este repositorio de GitHub.
-2. En el proyecto: *Storage → Create Database → Neon (Postgres)* y conectarla al proyecto (crea `DATABASE_URL` y `DATABASE_URL_UNPOOLED`).
-3. Variables de entorno: `PICHUCO_DEMO_OTP=1` (mientras no haya envío de emails) y `PICHUCO_ACCESS_CODE=<código del equipo>`.
-4. *Deploy*. El script `vercel-build` crea las tablas y, si la base está vacía, carga usuarios, catálogo y datos de prueba (`prisma/ensure-seed.ts`); en despliegues siguientes no toca los datos.
-
 Con `PICHUCO_DEMO_OTP=1` el código de login aparece en pantalla: sólo es seguro junto con `PICHUCO_ACCESS_CODE`. Para uso real hay que conectar un servicio de email y quitar el modo demo.
 
 ## Marca
