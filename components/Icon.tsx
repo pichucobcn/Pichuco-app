@@ -1,0 +1,27 @@
+const PATHS: Record<string, string> = {
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v5l3 2",
+  cart: "M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+  tasks: "M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2",
+  megaphone: "M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1Zm12-2a5 5 0 0 1 0 8m2-11a9 9 0 0 1 0 14",
+  chat: "M4 5h16v11H8l-4 4V5Zm4 5h8M8 13h5",
+  home: "M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10",
+  calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
+  box: "M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M12 11v10",
+  users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 10a7 7 0 0 1 14 0M17 3.5a4 4 0 0 1 0 7.5M22 21a7 7 0 0 0-4-6.3",
+  bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2Zm4 4a2 2 0 0 0 4 0",
+  send: "M4 12l16-8-6 16-2.5-6.5L4 12Z",
+  back: "M15 5l-7 7 7 7",
+  plus: "M12 5v14M5 12h14",
+  check: "M5 12l5 5 9-10",
+  logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11",
+  history: "M4 12a8 8 0 1 0 2.3-5.7L4 8.5M4 4v4.5h4.5M12 8v4l3 2",
+  spark: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z",
+};
+
+export function Icon({ name, size = 22, stroke = 2 }: { name: keyof typeof PATHS | string; size?: number; stroke?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={PATHS[name] ?? ""} />
+    </svg>
+  );
+}

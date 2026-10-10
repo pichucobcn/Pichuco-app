@@ -1,0 +1,10 @@
+{
+  "name": "Pichuco — Pizzería Porteña",
+  "short_name": "Pichuco",
+  "description": "Hablale a Pichuco. Pichuco se encarga.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FCF0D6",
+  "theme_color": "#862820",
+  "icons": [{ "src": "/brand/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  JEFE
+  JEFE_COCINA
+  COCINERO
+  CAMARERA
+}
+
+enum Area {
+  COCINA
+  SALA
+  ADMIN
+  GENERAL
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  shortName   String
+  role        Role
+  area        Area     @default(GENERAL)
+  avatarColor String   @default("#862820")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  sessions          Session[]
+  otpCodes          OtpCode[]
+  shifts            Shift[]
+  clockEvents       ClockEvent[]
+  assignedTasks     Task[]             @relation("TaskAssignee")
+  createdTasks      Task[]             @relation("TaskCreator")
+  taskComments      TaskComment[]
+  announcements     Announcement[]
+  announcementReads AnnouncementRead[]
+  incidents         Incident[]         @relation("IncidentUser")
+  reportedIncidents Incident[]         @relation("IncidentReporter")
+  notifications     Notification[]
+  aiMessages        AiMessage[]
+  auditLogs         AuditLog[]
+  responsibleEvents AgendaEvent[]      @relation("EventResponsible")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+/// Turno planificado. date = día de servicio (00:00 local), start/end en "HH:MM".
+model Shift {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+  start  String
+  end    String
+  note   String?
+
+  @@unique([userId, date])
+}
+
+enum ClockType {
+  ENTRADA
+  SALIDA
+  PAUSA_INICIO
+  PAUSA_FIN
+}
+
+model ClockEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ClockType
+  at        DateTime  @default(now())
+  note      String?
+}
+
+enum TaskKind {
+  GENERAL
+  PRODUCCION
+  LIMPIEZA
+  MANTENIMIENTO
+  ADMINISTRATIVA
+}
+
+enum TaskStatus {
+  PENDIENTE
+  EN_CURSO
+  COMPLETADA
+}
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  kind        TaskKind   @default(GENERAL)
+  area        Area?
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  date        DateTime?  @db.Date
+  dueTime     String?
+  priority    Priority   @default(MEDIA)
+  status      TaskStatus @default(PENDIENTE)
+  quantity    Float?
+  unit        String?
+  createdById String
+  createdBy   User       @relation("TaskCreator", fields: [createdById], references: [id])
+  createdByAi Boolean    @default(false)
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  comments    TaskComment[]
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+enum AnnouncementLevel {
+  URGENTE
+  IMPORTANTE
+  GENERAL
+  INFORMATIVO
+}
+
+model Announcement {
+  id          String             @id @default(cuid())
+  title       String
+  body        String
+  level       AnnouncementLevel  @default(GENERAL)
+  authorId    String
+  author      User               @relation(fields: [authorId], references: [id])
+  createdByAi Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  reads       AnnouncementRead[]
+}
+
+model AnnouncementRead {
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+
+  @@id([announcementId, userId])
+}
+
+enum IncidentType {
+  RETRASO
+  AUSENCIA
+  CAMBIO_TURNO
+  OTRO
+}
+
+model Incident {
+  id           String       @id @default(cuid())
+  type         IncidentType
+  userId       String
+  user         User         @relation("IncidentUser", fields: [userId], references: [id])
+  date         DateTime     @db.Date
+  minutes      Int?
+  reason       String?
+  /// Motivo privado: sólo lo ven el afectado y los responsables.
+  reportedById String
+  reportedBy   User         @relation("IncidentReporter", fields: [reportedById], references: [id])
+  createdAt    DateTime     @default(now())
+}
+
+enum EventKind {
+  ENTREGA
+  RESERVA
+  TAKEAWAY
+  OTRO
+}
+
+/// Eventos de agenda que no son turnos ni tareas: entregas de proveedores,
+/// reservas y pedidos para llevar (datos de prueba hasta las fases 2/3).
+model AgendaEvent {
+  id            String    @id @default(cuid())
+  kind          EventKind
+  title         String
+  date          DateTime  @db.Date
+  time          String
+  people        Int?
+  detail        String?
+  responsibleId String?
+  responsible   User?     @relation("EventResponsible", fields: [responsibleId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AiMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  /// Texto visible en la conversación
+  text      String
+  /// Acciones ejecutadas por la IA en este turno (JSON para mostrar "qué hizo Pichuco")
+  actions   Json?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  viaAi     Boolean  @default(false)
+  action    String
+  summary   String
+  input     String?
+  data      Json?
+  createdAt DateTime @default(now())
+}
