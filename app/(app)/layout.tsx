@@ -30,7 +30,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {unread > 0 && <span className="badge">{unread}</span>}
           </Link>
         </header>
-          <div className="guarda" aria-hidden="true" />
         {children}
       </div>
       <BottomNav showStock={can(user, "stock")} />

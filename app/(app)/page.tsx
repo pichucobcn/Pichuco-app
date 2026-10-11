@@ -47,6 +47,7 @@ export default async function Home() {
       <section className="home-hero">
         <img src="/brand/pichuco-crema.png" alt="Pichuco con su bandoneón" className="hero-mascot" />
         <img src="/brand/logo-ocre.png" alt="Pichuco — Pizzería Porteña" className="hero-logo" />
+        <div className="guarda" aria-hidden="true" />
       </section>
 
       <section className="home-ai" aria-label="Pichuco">
@@ -79,7 +80,7 @@ export default async function Home() {
         ))}
       </nav>
 
-      <div className="guarda pie" aria-hidden="true" />
+      <div className="flor-pie" aria-hidden="true" />
     </main>
   );
 }

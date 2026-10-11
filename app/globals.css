@@ -88,14 +88,13 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none;
   background: var(--warm-white); box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
 }
-/* Filete: rótulo centrado entre dos filetes que terminan en voluta */
+/* Filete: rótulo centrado entre dos líneas que terminan en una voluta */
 .filete { display: flex; align-items: center; gap: 12px; color: var(--burgundy); margin: 26px 0 12px; }
 .filete::before, .filete::after {
-  content: ""; flex: 1; height: 26px;
+  content: ""; flex: 1; height: 24px;
   background:
-    url("/brand/filete/filete-punta.svg") right center / auto 26px no-repeat,
-    linear-gradient(var(--ochre), var(--ochre)) left calc(50% + 5px) / calc(100% - 14px) 2.4px no-repeat,
-    linear-gradient(var(--navy), var(--navy)) 1.6px calc(50% + 6.6px) / calc(100% - 14px) 2.4px no-repeat;
+    url("/brand/ornamentos/remate-vino.png") right center / auto 24px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) left center / calc(100% - 30px) 1px no-repeat;
 }
 .filete::before { transform: scaleX(-1); }
 .filete h2 { font-size: 14px; font-weight: 500; white-space: nowrap; }
@@ -373,8 +372,6 @@ table.simple th { font-family: var(--font-label); font-weight: 500; font-size: 1
 .card .avatar, .sheet-avatar .avatar { box-shadow: 0 0 0 2px var(--warm-white), 0 0 0 3.5px var(--line-strong); }
 .bell { background: rgba(255, 255, 255, 0.08); color: var(--cream); box-shadow: inset 0 0 0 1px rgba(252, 240, 214, 0.24); }
 .bell .badge { background: var(--ochre); color: var(--brown); box-shadow: 0 0 0 2px var(--burgundy); }
-.guarda { display: none; }
-.guarda.pie { display: block; }
 body:has(main.home) .topbar .logo { visibility: hidden; }
 
 /* Hoja crema: todo lo que sigue al título de la pantalla */
@@ -484,7 +481,7 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .module.cream .badge { background: var(--burgundy); color: var(--cream); }
 
 /* Fichar: estampa con fileteado */
-.clock-face.fileteado { padding: 36px 20px 30px; background-size: 46px 46px; }
+.clock-face.fileteado { padding: 36px 20px 30px; background-size: auto 40px; }
 .clock-face .now { color: var(--navy); }
 
 /* Login: el dibujo sobre una estampa crema */
@@ -624,18 +621,16 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .temp-input { flex: 1; max-width: none; min-width: 0; }
 @media print { .allergen-scroll { overflow: visible; margin: 0; padding: 0; } .allergen-table .dish-name { position: static; box-shadow: none; } }
 
-/* Fileteado porteño: guarda y esquineros en ocre con sombra azul marino */
-.guarda {
-  height: 38px; max-width: 330px; margin: 2px auto 6px;
-  background: url("/brand/filete/filete-guarda.svg") center / contain no-repeat;
-}
-.guarda.pie { margin: 24px auto 4px; }
+/* Ornamentos vintage (volutas recoloreadas): guarda, flor y esquineros */
+.guarda { height: 46px; max-width: 320px; margin: 4px auto 10px; background: url("/brand/ornamentos/guarda-oro.png") center / contain no-repeat; }
+.guarda.vino { background-image: url("/brand/ornamentos/guarda-vino.png"); }
+.flor-pie { height: 46px; margin: 22px auto 6px; background: url("/brand/ornamentos/flor-oro.png") center / contain no-repeat; }
 .fileteado {
   background-image:
-    url("/brand/filete/filete-esquina-tl.svg"), url("/brand/filete/filete-esquina-tr.svg"),
-    url("/brand/filete/filete-esquina-bl.svg"), url("/brand/filete/filete-esquina-br.svg");
-  background-position: 10px 10px, calc(100% - 10px) 10px, 10px calc(100% - 10px), calc(100% - 10px) calc(100% - 10px);
-  background-size: 54px 54px;
+    url("/brand/ornamentos/esquina-tl-vino.png"), url("/brand/ornamentos/esquina-tr-vino.png"),
+    url("/brand/ornamentos/esquina-bl-vino.png"), url("/brand/ornamentos/esquina-br-vino.png");
+  background-position: 12px 12px, calc(100% - 12px) 12px, 12px calc(100% - 12px), calc(100% - 12px) calc(100% - 12px);
+  background-size: auto 44px;
   background-repeat: no-repeat;
 }
 @media print { .guarda { display: none; } }
@@ -644,3 +639,4 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .login-card { text-align: left; padding-top: 22px; }
 .login-h { font-family: var(--font-display); font-size: 24px; color: var(--burgundy); margin: 0; }
 .login .btn { background: var(--navy); }
+.home-hero .guarda { width: 300px; max-width: 86%; margin: 8px auto 2px; }
