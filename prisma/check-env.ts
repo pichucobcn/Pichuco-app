@@ -22,7 +22,7 @@ function check(name: "DATABASE_URL" | "DIRECT_URL", port: string) {
     return;
   }
   if (/…|%E2%80%A6|\.\.\./i.test(url.hostname))
-    problems.push(`${name}: la dirección del servidor tiene puntos suspensivos (…): copiá la dirección completa de Supabase, por ejemplo aws-0-eu-west-3.pooler.supabase.com.`);
+    problems.push(`${name}: la dirección del servidor tiene puntos suspensivos (…): copiá la dirección completa de Supabase, por ejemplo aws-0-eu-west-1.pooler.supabase.com.`);
   if (!url.protocol.startsWith("postgres")) problems.push(`${name}: tiene que empezar con postgresql://`);
   if (url.hostname.startsWith("db.") && url.hostname.endsWith(".supabase.co"))
     problems.push(`${name}: es la "Direct connection" (${url.hostname}), que no funciona desde Vercel. Usá la del pooler (…pooler.supabase.com).`);
