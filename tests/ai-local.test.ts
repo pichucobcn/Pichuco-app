@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { db } from "../lib/db";
 import { localAgent } from "../lib/ai/local";
-import { parseSpanishDate, addDays } from "../lib/dates";
+import { parseSpanishDate, addDays, todayISO, toDbDate } from "../lib/dates";
 import { createAnnouncement } from "../lib/services/announcements";
 import { teamClock, clock } from "../lib/services/clock";
 
@@ -25,6 +25,8 @@ test("fechas en castellano", () => {
 
 test("retraso de Juan Pablo detecta la entrega de harina y avisa a Gian, sin el motivo", async () => {
   const jp = await user("juanpablo@pichuco.es");
+  // Turno puntual de mañana a las 18:00 (reemplaza el horario semanal): la harina llega 18:15.
+  await db.shift.create({ data: { userId: jp.id, date: toDbDate(addDays(todayISO(), 1)), start: "18:00", end: "00:00" } });
   const r = await localAgent(jp, "Mañana llego 30 minutos tarde porque tengo médico.");
   assert.match(r.text, /30 minutos tarde/);
   assert.match(r.text, /harina/i);
@@ -79,4 +81,19 @@ test("fichaje respeta la secuencia", async () => {
   await clock(eva, "ENTRADA", undefined);
   await clock(eva, "PAUSA_INICIO", undefined);
   await assert.rejects(clock(eva, "SALIDA", undefined), /No podés/);
+});
+
+test("horario semanal: el viernes trabajan Gian, Juan Pablo y Eva; un turno con fecha lo reemplaza", async () => {
+  const { shiftsForDate, shiftFor } = await import("../lib/services/team");
+  let friday = todayISO();
+  while (new Date(friday + "T00:00:00Z").getUTCDay() !== 5) friday = addDays(friday, 1);
+  const s = await shiftsForDate(friday);
+  assert.deepEqual(s.map((x) => `${x.user.shortName} ${x.start}-${x.end}`), ["Gian 17:00-00:00", "Juan Pablo 17:00-00:00", "Eva 19:00-01:00"]);
+  let tuesday = friday;
+  while (new Date(tuesday + "T00:00:00Z").getUTCDay() !== 2) tuesday = addDays(tuesday, 1);
+  assert.equal((await shiftsForDate(tuesday)).length, 0);
+  const eva = await user("eva@pichuco.es");
+  await db.shift.create({ data: { userId: eva.id, date: toDbDate(friday), start: "20:00", end: "00:00" } });
+  assert.equal((await shiftFor(eva.id, friday))?.start, "20:00");
+  assert.equal((await shiftsForDate(friday)).filter((x) => x.userId === eva.id).length, 1);
 });

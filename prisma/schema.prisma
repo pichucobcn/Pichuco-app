@@ -43,6 +43,7 @@ model User {
   sessions          Session[]
   otpCodes          OtpCode[]
   shifts            Shift[]
+  weeklyShifts      WeeklyShift[]
   clockEvents       ClockEvent[]
   assignedTasks     Task[]             @relation("TaskAssignee")
   createdTasks      Task[]             @relation("TaskCreator")
@@ -103,6 +104,19 @@ model Shift {
   note   String?
 
   @@unique([userId, date])
+}
+
+/// Horario fijo semanal. Un `Shift` con fecha lo reemplaza ese día.
+model WeeklyShift {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 0 = domingo … 6 = sábado
+  weekday Int
+  start   String
+  end     String
+
+  @@unique([userId, weekday])
 }
 
 enum ClockType {

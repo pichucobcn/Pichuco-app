@@ -42,12 +42,26 @@ export async function areaManagers(area: Area | null | undefined) {
   return jefe;
 }
 
+const weekdayOf = (date: string) => new Date(date + "T00:00:00Z").getUTCDay();
+
+/** Turnos del día: el horario semanal de cada uno, salvo que haya un turno con fecha que lo reemplace. */
 export async function shiftsForDate(date: string) {
-  return db.shift.findMany({ where: { date: toDbDate(date) }, include: { user: true }, orderBy: { start: "asc" } });
+  const [dated, weekly] = await Promise.all([
+    db.shift.findMany({ where: { date: toDbDate(date) }, include: { user: true } }),
+    db.weeklyShift.findMany({ where: { weekday: weekdayOf(date), user: { active: true } }, include: { user: true } }),
+  ]);
+  const overridden = new Set(dated.map((s) => s.userId));
+  const fromWeek = weekly
+    .filter((w) => !overridden.has(w.userId))
+    .map((w) => ({ id: w.id, userId: w.userId, date: toDbDate(date), start: w.start, end: w.end, note: null as string | null, user: w.user }));
+  return [...dated, ...fromWeek].sort((a, b) => a.start.localeCompare(b.start));
 }
 
 export async function shiftFor(userId: string, date: string) {
-  return db.shift.findUnique({ where: { userId_date: { userId, date: toDbDate(date) } } });
+  const dated = await db.shift.findUnique({ where: { userId_date: { userId, date: toDbDate(date) } } });
+  if (dated) return dated;
+  const w = await db.weeklyShift.findUnique({ where: { userId_weekday: { userId, weekday: weekdayOf(date) } } });
+  return w ? { id: w.id, userId, date: toDbDate(date), start: w.start, end: w.end, note: null as string | null } : null;
 }
 
 /** Ficha pública del equipo para el día: nombre, rol, turno y estado de fichaje. */

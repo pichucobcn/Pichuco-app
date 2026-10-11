@@ -5,6 +5,7 @@
 import { PrismaClient, type Area, type Role } from "@prisma/client";
 import { addDays, toDbDate, todayISO } from "../lib/dates";
 import { loadCatalog } from "./catalogo";
+import { loadSchedule } from "./horarios";
 
 const db = new PrismaClient();
 
@@ -16,13 +17,6 @@ const USERS: { email: string; name: string; shortName: string; role: Role; area:
 ];
 
 // Turnos de la semana (cerrado los lunes).
-const SHIFTS: Record<string, [string, string]> = {
-  Gian: ["17:30", "00:00"],
-  "Juan Pablo": ["18:00", "00:00"],
-  Eva: ["19:00", "00:30"],
-  Martín: ["19:30", "00:30"],
-};
-
 async function main() {
   const today = todayISO();
   const tomorrow = addDays(today, 1);
@@ -67,13 +61,8 @@ async function main() {
   const u: Record<string, string> = {};
   for (const data of USERS) u[data.shortName] = (await db.user.create({ data })).id;
 
-  for (let i = -7; i <= 14; i++) {
-    const date = addDays(today, i);
-    if (new Date(date + "T00:00:00Z").getUTCDay() === 1) continue;
-    for (const [name, [start, end]] of Object.entries(SHIFTS)) {
-      await db.shift.create({ data: { userId: u[name], date: toDbDate(date), start, end } });
-    }
-  }
+  // Horario semanal real (Martín no tiene turno fijo)
+  await loadSchedule(db);
 
   const ev = (kind: "ENTREGA", date: string, time: string, title: string, extra: object = {}) =>
     db.agendaEvent.create({ data: { kind, date: toDbDate(date), time, title, ...extra } });
