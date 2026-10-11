@@ -45,6 +45,18 @@ test("Pichuco AI prepara el pedido de muzzarella al proveedor habitual; sin prec
   assert.match(a.text, /Aprobado/);
 });
 
+test("si se nombra el proveedor, busca el producto entre los suyos; si hay dudas, pregunta", async () => {
+  const martin = await user("martin@pichuco.es");
+  const r = await localAgent(martin, "necesitamos 20 kilos de queso merkapizza para el viernes");
+  assert.match(r.text, /pedido #\d+ a Merkapizza/);
+  assert.match(r.text, /20 kg de queso napoli rallado/);
+  const r2 = await localAgent(martin, "Comprá 5 kg de queso");
+  assert.match(r2.text, /Queso azul \(Ken Foods\), Queso napoli rallado \(Merkapizza\)/);
+  const r3 = await localAgent(martin, "Pedile 3 latas de salsa de tomate a Merkapizza");
+  assert.match(r3.text, /a Merkapizza/);
+  assert.match(r3.text, /salsa de tomate premium/);
+});
+
 test("con precio cargado, un pedido chico se aprueba solo", async () => {
   const gian = await user("gian@pichuco.es");
   const p = await db.product.findFirstOrThrow({ where: { name: "Muzzarella rallada" } });

@@ -225,24 +225,26 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
   assertCan(actor, "compras", "No tenés permiso para hacer pedidos. Pedile a Gian o a Martín.");
   const input = orderInputSchema.parse(raw);
 
+  // Proveedor indicado (si lo hay): también acota la búsqueda de productos.
+  let supplier = input.supplierId
+    ? await db.supplier.findUnique({ where: { id: input.supplierId } })
+    : input.supplierName
+      ? await findSupplier(input.supplierName)
+      : null;
+
   // Resolver productos (por id o nombre aproximado)
   const lines = [];
   for (const l of input.lines) {
     const product = l.productId
       ? await db.product.findUnique({ where: { id: l.productId }, include: { supplier: true } })
       : l.productName
-        ? await findProduct(l.productName)
+        ? await findProduct(l.productName, { supplierId: supplier?.id })
         : null;
     if (!product) throw new NotFoundError(`No encuentro el producto "${l.productName ?? l.productId}" en el stock.`);
     lines.push({ product, quantity: l.quantity, unitPrice: l.unitPrice ?? product.lastPrice ?? product.usualPrice ?? 0 });
   }
 
-  // Proveedor: el indicado o el habitual de los productos
-  let supplier = input.supplierId
-    ? await db.supplier.findUnique({ where: { id: input.supplierId } })
-    : input.supplierName
-      ? await findSupplier(input.supplierName)
-      : null;
+  // Si no se indicó, el proveedor habitual de los productos
   if (!supplier) {
     const ids = [...new Set(lines.map((l) => l.product.supplierId).filter(Boolean))];
     if (ids.length !== 1) throw new ValidationError("Los productos son de proveedores distintos: hacé un pedido por proveedor.");

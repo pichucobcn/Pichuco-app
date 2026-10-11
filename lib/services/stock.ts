@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "../db";
-import { assertCan, NotFoundError } from "../permissions";
+import { assertCan, NotFoundError, ValidationError } from "../permissions";
 import { audit } from "./audit";
 import type { Actor, ActionContext } from "./context";
 
@@ -45,17 +45,64 @@ export async function lowStock(actor: Actor) {
   return (await listProducts(actor)).filter(isLow);
 }
 
-/** Busca un producto por nombre aproximado ("mozza", "harina 00"). */
-export async function findProduct(name: string) {
-  const q = normalize(name).replace(/s$/, "");
-  const products = await db.product.findMany({ where: { active: true }, include: { supplier: true } });
-  return (
-    products.find((p) => normalize(p.name) === q) ??
-    products.find((p) => normalize(p.name).startsWith(q)) ??
-    products.find((p) => normalize(p.name).includes(q)) ??
-    products.find((p) => q.includes(normalize(p.name).split(" ")[0])) ??
-    null
-  );
+const STOP = new Set(["de", "del", "la", "el", "los", "las", "al", "a", "y", "con", "para", "kg", "kilos", "kilo"]);
+const words = (s: string) =>
+  normalize(s)
+    .split(/[^a-z0-9ñ-]+/)
+    .filter((w) => w && !STOP.has(w) && !/^\d/.test(w))
+    .map((w) => w.replace(/(?<=[a-z]{3})(es|s)$/, ""));
+const wordMatch = (a: string, b: string) => a === b || (a.length >= 4 && b.startsWith(a)) || (b.length >= 4 && a.startsWith(b));
+
+/**
+ * Busca un producto por nombre aproximado ("mozza", "queso merkapizza", "harina 00").
+ * Si el texto nombra un proveedor ("queso merkapizza") o viene `supplierId`, busca
+ * sólo entre sus productos. Si hay varios igual de probables, no adivina: lanza un
+ * error con las opciones.
+ */
+export async function findProduct(name: string, opts: { supplierId?: string | null } = {}) {
+  let text = normalize(name);
+  const all = await db.product.findMany({ where: { active: true }, include: { supplier: true } });
+
+  // ¿Nombra un proveedor? ("queso merkapizza", "salsa de kimon")
+  let supplierId = opts.supplierId ?? null;
+  const suppliers = [...new Map(all.filter((p) => p.supplier).map((p) => [p.supplier!.id, p.supplier!])).values()];
+  for (const s of suppliers) {
+    const sn = normalize(s.name);
+    const re = new RegExp(`\\b(?:de |a |al |en )?${sn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    if (re.test(text)) {
+      text = text.replace(re, " ").replace(/\s+/g, " ").trim();
+      supplierId ??= s.id;
+    }
+  }
+  const pool = supplierId && all.some((p) => p.supplierId === supplierId) ? all.filter((p) => p.supplierId === supplierId) : all;
+  const q = text.replace(/s$/, "");
+  if (!q) return pool.length === 1 ? pool[0] : null;
+
+  const exact = pool.find((p) => normalize(p.name) === q || normalize(p.name) === text);
+  if (exact) return exact;
+
+  const qw = words(text);
+  const scored = pool
+    .map((p) => {
+      const pw = words(p.name);
+      const hits = qw.filter((w) => pw.some((x) => wordMatch(w, x))).length;
+      const covered = pw.filter((x) => qw.some((w) => wordMatch(w, x))).length;
+      const prefix = normalize(p.name).startsWith(q) ? 1 : 0;
+      return { p, hits, covered, extra: pw.length - covered, prefix };
+    })
+    .filter((x) => x.hits > 0 || x.prefix);
+  if (!scored.length) return null;
+  scored.sort((a, b) => b.hits - a.hits || b.prefix - a.prefix || a.extra - b.extra);
+  const top = scored.filter((x) => x.hits === scored[0].hits && x.prefix === scored[0].prefix);
+  // Un único candidato, o uno solo cuyo nombre queda cubierto por completo: sin dudas.
+  if (top.length === 1) return top[0].p;
+  const full = top.filter((x) => x.extra === 0);
+  if (full.length === 1) return full[0].p;
+  const options = scored
+    .filter((x) => x.hits === scored[0].hits)
+    .slice(0, 6)
+    .map((x) => `${x.p.name}${x.p.supplier ? ` (${x.p.supplier.name})` : ""}`);
+  throw new ValidationError(`Hay varios productos que encajan con “${name.trim()}”: ${options.join(", ")}. ¿Cuál?`);
 }
 
 export async function getProduct(actor: Actor, id: string) {

@@ -177,7 +177,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     if (cbMatch) t = t.replace(cbMatch[0], "");
     const rest = stripDateWords(t.replace(/^.*?\b(compr[aá]r?|ped[ií](le)?( al proveedor)?|necesitamos|hace falta)(?![a-zñáéíóú])\s*/, ""));
     const m = rest.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|l|litros?|cajas?|unidades?|u|sacos?|botellas?|latas?|bandejas?)?\s*(?:de\s+)?(.+)$/);
-    const product = m ? m[3].replace(/\s+(al|a|para)\s+.*$/, "").trim() : rest;
+    const product = m ? m[3].replace(/\s+para\s+.*$/, "").trim() : rest;
     const quantity = m ? num(m[1]) : NaN;
     if (!can(actor, "compras")) {
       const r = await call(actor, input, actions, "send_team_message", {
