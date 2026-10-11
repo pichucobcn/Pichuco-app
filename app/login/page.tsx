@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, MIN_PASSWORD } from "@/lib/auth";
+import { loginRoster } from "@/lib/services/team";
 import { LoginForm } from "./LoginForm";
+
+export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect("/");
@@ -11,7 +14,7 @@ export default async function LoginPage() {
           <img src="/brand/pichuco.png" alt="Pichuco — Pizzería Porteña" className="mascot" />
         </div>
         <div className="guarda" aria-hidden="true" />
-        <LoginForm demo={process.env.PICHUCO_DEMO_OTP === "1"} needsAccessCode={!!process.env.PICHUCO_ACCESS_CODE} />
+        <LoginForm people={await loginRoster()} minPassword={MIN_PASSWORD} />
       </div>
     </main>
   );

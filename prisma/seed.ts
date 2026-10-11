@@ -6,6 +6,7 @@ import { PrismaClient, type Area, type Role } from "@prisma/client";
 import { addDays, toDbDate, todayISO } from "../lib/dates";
 import { loadCatalog } from "./catalogo";
 import { loadSchedule } from "./horarios";
+import { loadEquipment } from "./equipos";
 
 const db = new PrismaClient();
 
@@ -176,15 +177,9 @@ async function main() {
     return new Date(toDbDate(day).getTime() + ((h - 2 + 24) % 24) * 3_600_000 + m * 60_000 + (h < 2 ? 86_400_000 : 0));
   };
   const yesterday = addDays(today, -1);
-  const eq = async (name: string, kind: string, minTemp: number, maxTemp: number, sort: number, area = "COCINA") =>
-    (await db.foodEquipment.create({ data: { name, kind, minTemp, maxTemp, sort, area } })).id;
-  const E = {
-    camara1: await eq("Cámara 1 (lácteos y masas)", "REFRIGERACION", 0, 4, 1),
-    camara2: await eq("Cámara 2 (carnes y verduras)", "REFRIGERACION", 0, 4, 2),
-    congelador: await eq("Congelador", "CONGELACION", -25, -18, 3),
-    mesa: await eq("Mesa fría de pizzas", "REFRIGERACION", 0, 5, 4),
-    bebidas: await eq("Nevera de bebidas", "REFRIGERACION", 1, 8, 5, "SALA"),
-  };
+  // Neveras y congeladores reales (prisma/equipos.ts)
+  const R = await loadEquipment(db);
+  const E = { camara1: R.C1, camara2: R.C2, congelador: R.C7, mesa: R.C3, bebidas: R.B1 };
   const temp = (equipmentId: string, value: number, when: Date, userId: string, outOfRange = false, correctiveAction?: string) =>
     db.temperatureLog.create({ data: { equipmentId, value, at: when, userId, outOfRange, correctiveAction } });
   // Ayer: todo completo, con una lectura fuera de rango resuelta
@@ -192,12 +187,12 @@ async function main() {
     await temp(id, a, at(yesterday, "17:40"), u.Gian);
     await temp(id, b, at(yesterday, "23:50"), u["Juan Pablo"]);
   }
-  await temp(E.bebidas, 9.5, at(yesterday, "19:10"), u.Eva, true, "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 6 °C.");
-  await temp(E.bebidas, 6, at(yesterday, "19:40"), u.Eva);
+  await temp(E.bebidas, 9.5, at(yesterday, "19:10"), u.Eva, true, "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 3,5 °C.");
+  await temp(E.bebidas, 3.5, at(yesterday, "19:40"), u.Eva);
   await db.nonConformity.create({
     data: {
-      source: "TEMPERATURA", description: "Nevera de bebidas a 9,5 °C (rango 1 a 8 °C).", status: "CERRADA",
-      correctiveAction: "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 6 °C.", createdById: u.Eva, closedById: u.Eva,
+      source: "TEMPERATURA", description: "Nevera B1 a 9,5 °C (rango 0 a 4 °C).", status: "CERRADA",
+      correctiveAction: "La puerta quedó mal cerrada. Se cerró y a las 19:40 marcaba 3,5 °C.", createdById: u.Eva, closedById: u.Eva,
       closedAt: at(yesterday, "19:40"), createdAt: at(yesterday, "19:10"),
     },
   });
@@ -208,7 +203,7 @@ async function main() {
     for (const id of [E.camara1, E.camara2, E.mesa]) await temp(id, 2 + (i % 3) * 0.5, at(d, "17:45"), u.Gian);
     await temp(E.congelador, -20, at(d, "17:45"), u.Gian);
   }
-  // Hoy: sólo una lectura de apertura en la cámara 1
+  // Hoy: sólo una lectura de apertura en la C1
   await temp(E.camara1, 3, at(today, "07:30"), u.Gian);
 
   const ci = async (name: string, area: string, frequency: string, method: string, sort: number) =>

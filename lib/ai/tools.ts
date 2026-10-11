@@ -515,7 +515,7 @@ export const TOOLS: Record<string, ToolDef> = {
     input_schema: {
       type: "object",
       properties: {
-        equipment: { type: "string", description: "Nombre del equipo: 'cámara 1', 'congelador', 'nevera de bebidas', 'mesa fría'…" },
+        equipment: { type: "string", description: "Equipo por su código: neveras B1, B2, C1–C6; congeladores B3 y C7 (por ejemplo 'C1' o 'B3')." },
         value: { type: "number", description: "Grados centígrados" },
         corrective_action: { type: "string", description: "Qué se hizo si estaba fuera de rango" },
       },

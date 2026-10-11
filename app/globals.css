@@ -639,3 +639,8 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
   background-repeat: no-repeat;
 }
 @media print { .guarda { display: none; } }
+
+/* Entrada */
+.login-card { text-align: left; padding-top: 22px; }
+.login-h { font-family: var(--font-display); font-size: 24px; color: var(--burgundy); margin: 0; }
+.login .btn { background: var(--navy); }

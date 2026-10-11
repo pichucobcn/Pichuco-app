@@ -126,7 +126,7 @@ test("catálogo real cargado y recarga sin duplicar", async () => {
   const { loadCatalog, CATALOG } = await import("../prisma/catalogo");
   const total = CATALOG.reduce((s, c) => s + c.products.length, 0);
   assert.equal(await db.product.count(), total);
-  await loadCatalog(db);
+  await loadCatalog(db as unknown as import("@prisma/client").PrismaClient);
   assert.equal(await db.product.count(), total);
   assert.equal(await db.supplier.count(), CATALOG.length);
 });

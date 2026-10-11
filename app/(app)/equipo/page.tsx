@@ -9,6 +9,8 @@ import { Icon } from "@/components/Icon";
 import { PageTitle } from "@/components/PageTitle";
 import { LogoutButton } from "./LogoutButton";
 import { PhoneEditor } from "./PhoneEditor";
+import { ChangePassword, ResetPassword } from "./PasswordControls";
+import { MIN_PASSWORD } from "@/lib/auth";
 import { formatPhone } from "@/lib/phone";
 
 const PERM_LABEL: Record<string, string> = {
@@ -45,7 +47,12 @@ export default async function EquipoPage() {
                     </>
                   ) : null}
                 </div>
-                {can(user, "personal") && m.id !== user.id && <PhoneEditor userId={m.id} phone={m.phone} compact />}
+                {can(user, "personal") && m.id !== user.id && (
+                  <div className="row" style={{ gap: 14, flexWrap: "wrap" }}>
+                    <PhoneEditor userId={m.id} phone={m.phone} compact />
+                    <ResetPassword userId={m.id} name={m.name} hasPassword={m.hasPassword} />
+                  </div>
+                )}
                 <div className="row small" style={{ flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                   <span className="tag brown">{m.shift ? `Hoy ${m.shift.start}–${m.shift.end}` : "Libre hoy"}</span>
                   <span className={`tag ${m.status === "trabajando" ? "green" : m.status === "en pausa" ? "amber" : "brown"}`}>{m.status}</span>
@@ -75,6 +82,7 @@ export default async function EquipoPage() {
           </div>
         </div>
         <PhoneEditor userId={user.id} phone={user.phone} />
+        <ChangePassword minPassword={MIN_PASSWORD} />
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           {ROLE_PERMISSIONS[user.role].map((p) => (
             <span key={p} className="tag brown">

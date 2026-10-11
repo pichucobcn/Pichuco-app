@@ -1,4 +1,5 @@
-import type { IncidentType, User } from "@prisma/client";
+import type { IncidentType } from "@prisma/client";
+import type { AppUser as User } from "./context";
 import { z } from "zod";
 import { db } from "../db";
 import { hhmmToMinutes, isISODate, minutesToHHMM, relativeDay, toDbDate } from "../dates";

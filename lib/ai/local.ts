@@ -78,8 +78,10 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
   const date = parseSpanishDate(t, today) ?? today;
   const actions: AiAction[] = [];
 
-  // 0a) Temperaturas: "la cámara 1 está a 3 grados", "congelador -19°"
-  const eqWord = t.match(/(c[aá]mara(?:\s*(?:n[ºo°]?\s*)?\d+)?|congelador(?:\s*\d+)?|arc[oó]n|(?:nevera|heladera)(?:\s+de\s+[a-záéíóúñ]+)?|mesa fr[ií]a|frigo[a-z]*)/);
+  // 0a) Temperaturas: "la C1 está a 3 grados", "B3 a -19", "la cámara 1 está a 3°"
+  const eqWord =
+    t.match(/(?:nevera|heladera|congelador|c[aá]mara|frigo[a-z]*)?\s*\b([bc]\s?\d)\b/) ??
+    t.match(/(c[aá]mara(?:\s*(?:n[ºo°]?\s*)?\d+)?|congelador(?:\s*\d+)?|arc[oó]n|(?:nevera|heladera)(?:\s+de\s+[a-záéíóúñ]+)?|mesa fr[ií]a|frigo[a-z]*)/);
   const tempVal = t.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|º|grados?)/) ?? (eqWord ? t.match(/\ba\s+(-?\d+(?:[.,]\d+)?)\b/) : null);
   if (eqWord && tempVal && can(actor, "sanidad")) {
     const value = num(tempVal[1]);

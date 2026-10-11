@@ -29,14 +29,14 @@ test("día de servicio: después de medianoche cuenta para el día anterior", ()
 
 test("temperatura en rango: sin incidencia", async () => {
   const jp = await user("juanpablo@pichuco.es");
-  const r = await recordTemperature(jp, { equipmentName: "cámara 2", value: 3 });
+  const r = await recordTemperature(jp, { equipmentName: "C2", value: 3 });
   assert.equal(r.outOfRange, false);
   assert.equal(r.nc, null);
 });
 
 test("temperatura fuera de rango: abre incidencia y avisa a Gian y Martín", async () => {
   const eva = await user("eva@pichuco.es");
-  const r = await recordTemperature(eva, { equipmentName: "nevera de bebidas", value: 11 });
+  const r = await recordTemperature(eva, { equipmentName: "nevera B1", value: 11 });
   assert.equal(r.outOfRange, true);
   assert.equal(r.nc?.status, "ABIERTA");
   const notes = await db.notification.findMany({ where: { title: "Incidencia sanitaria" }, include: { user: true } });
@@ -51,7 +51,7 @@ test("temperatura fuera de rango: abre incidencia y avisa a Gian y Martín", asy
 
 test("con acción correctora dicha, la incidencia queda cerrada", async () => {
   const gian = await user("gian@pichuco.es");
-  const r = await recordTemperature(gian, { equipmentName: "congelador", value: -12, correctiveAction: "Se pasó el producto a la cámara de respaldo" });
+  const r = await recordTemperature(gian, { equipmentName: "C7", value: -12, correctiveAction: "Se pasó el producto a la cámara de respaldo" });
   assert.equal(r.nc?.status, "CERRADA");
 });
 
@@ -83,6 +83,14 @@ test("resumen del día: temperaturas pendientes, caducados e incidencias", async
   assert.ok(d.trainingsExpiring.some((t) => t.user.shortName === "Gian"));
 });
 
+test("equipos reales: 8 neveras y 2 congeladores, sin los de prueba", async () => {
+  const eq = await db.foodEquipment.findMany({ where: { active: true }, orderBy: { sort: "asc" } });
+  assert.deepEqual(eq.map((e) => e.name), ["Nevera B1", "Nevera B2", "Congelador B3", "Nevera C1", "Nevera C2", "Nevera C3", "Nevera C4", "Nevera C5", "Nevera C6", "Congelador C7"]);
+  const { loadEquipment } = await import("../prisma/equipos");
+  await loadEquipment(db as unknown as import("@prisma/client").PrismaClient);
+  assert.equal(await db.foodEquipment.count({ where: { active: true } }), 10);
+});
+
 test("sólo los responsables gestionan equipos y alérgenos", async () => {
   const jp = await user("juanpablo@pichuco.es");
   await assert.rejects(saveEquipment(jp, null, { name: "Cámara 3", kind: "REFRIGERACION", minTemp: 0, maxTemp: 4 }), /permiso/);
@@ -100,10 +108,12 @@ test("informe: incluye los registros del período", async () => {
 
 test("Pichuco AI: temperaturas, limpieza, elaboraciones y estado", async () => {
   const jp = await user("juanpablo@pichuco.es");
-  let r = await localAgent(jp, "La cámara 1 está a 3 grados");
-  assert.match(r.text, /Cámara 1.*3 °C.*en rango/);
-  r = await localAgent(jp, "La mesa fría está a 9°");
-  assert.match(r.text, /fuera de rango/);
+  let r = await localAgent(jp, "La C1 está a 3 grados");
+  assert.match(r.text, /Nevera C1.*3 °C.*en rango/);
+  r = await localAgent(jp, "la c 3 está a 9°");
+  assert.match(r.text, /Nevera C3.*fuera de rango/);
+  r = await localAgent(jp, "B3 a -19");
+  assert.match(r.text, /Congelador B3.*-19 °C.*en rango/);
   r = await localAgent(jp, "Limpié la campana");
   assert.match(r.text, /campana/i);
   r = await localAgent(jp, "Hice 10 kg de masa");

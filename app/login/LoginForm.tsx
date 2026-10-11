@@ -2,46 +2,55 @@
 import { useState } from "react";
 import { api } from "@/components/api";
 
-const DEMO_USERS = [
-  { email: "martin@pichuco.es", name: "Martín", role: "Jefe" },
-  { email: "gian@pichuco.es", name: "Gian", role: "Jefe de cocina" },
-  { email: "juanpablo@pichuco.es", name: "Juan Pablo", role: "Cocinero" },
-  { email: "eva@pichuco.es", name: "Eva", role: "Camarera" },
-];
+type Person = { id: string; name: string; role: string; hasPassword: boolean };
 
-export function LoginForm({ demo, needsAccessCode }: { demo: boolean; needsAccessCode: boolean }) {
-  const [email, setEmail] = useState("");
-  const [accessCode, setAccessCode] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [demoCode, setDemoCode] = useState<string>();
+/**
+ * Entrar: 1) tocar tu nombre, 2) tu contraseña. La primera vez se usa el código
+ * del equipo que reparte Martín y después cada uno elige la suya.
+ */
+export function LoginForm({ people, minPassword }: { people: Person[]; minPassword: number }) {
+  const [who, setWho] = useState<Person | null>(null);
+  const [step, setStep] = useState<"who" | "password" | "setup">("who");
+  const [password, setPassword] = useState("");
+  const [teamCode, setTeamCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
-  async function requestCode(e?: string) {
-    const target = (e ?? email).trim();
-    if (!target) return;
-    setEmail(target);
+  function choose(p: Person) {
+    setWho(p);
+    setStep("password");
+    setPassword("");
+    setError(undefined);
+  }
+
+  async function login() {
+    if (!who) return;
     setBusy(true);
     setError(undefined);
     try {
-      if (needsAccessCode && !accessCode.trim()) throw new Error("Poné el código del equipo.");
-      const r = await api<{ demoCode?: string }>("/api/auth/request", { email: target, accessCode });
-      setDemoCode(r.demoCode);
-      if (r.demoCode) setCode(r.demoCode);
-      setStep("code");
+      const r = await api<{ setup?: boolean }>("/api/auth/login", { userId: who.id, password });
+      if (r.setup) {
+        setTeamCode(password);
+        setStep("setup");
+        setBusy(false);
+        return;
+      }
+      window.location.href = "/";
     } catch (err) {
       setError((err as Error).message);
-    } finally {
       setBusy(false);
     }
   }
 
-  async function verify() {
+  async function setup() {
+    if (!who) return;
+    if (newPassword !== repeat) return setError("Las dos contraseñas no coinciden.");
     setBusy(true);
     setError(undefined);
     try {
-      await api("/api/auth/verify", { email, code });
+      await api("/api/auth/setup", { userId: who.id, teamCode, password: newPassword });
       window.location.href = "/";
     } catch (err) {
       setError((err as Error).message);
@@ -50,71 +59,83 @@ export function LoginForm({ demo, needsAccessCode }: { demo: boolean; needsAcces
   }
 
   return (
-    <div className="card stack" style={{ textAlign: "left", paddingTop: 26 }}>
-      {step === "email" ? (
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            requestCode();
-          }}
-        >
-          {needsAccessCode && (
-            <div className="field">
-              <label htmlFor="access">Código del equipo</label>
-              <input id="access" className="input" autoComplete="off" autoCapitalize="characters" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder="Te lo pasa Martín" />
-            </div>
-          )}
-          <div className="field">
-            <label htmlFor="email">Tu email</label>
-            <input id="email" className="input" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@pichuco.es" required />
-          </div>
-          <button className="btn block" disabled={busy}>
-            Recibir código de acceso
-          </button>
-        </form>
-      ) : (
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            verify();
-          }}
-        >
-          <p className="small muted" style={{ margin: 0 }}>
-            Te mandamos un código de 6 dígitos a <b>{email}</b>.
-          </p>
-          {demoCode && (
-            <p className="small" style={{ margin: 0 }}>
-              <span className="tag amber">Demo</span> Tu código es <b>{demoCode}</b>
-            </p>
-          )}
-          <div className="field">
-            <label htmlFor="code">Código</label>
-            <input id="code" className="input" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required style={{ letterSpacing: 8, fontSize: 22, textAlign: "center" }} />
-          </div>
-          <button className="btn block" disabled={busy || code.length !== 6}>
-            Entrar
-          </button>
-          <button type="button" className="btn secondary small" onClick={() => setStep("email")}>
-            Usar otro email
-          </button>
-        </form>
-      )}
-      {error && <p className="error">{error}</p>}
-      {demo && step === "email" && (
+    <div className="card stack login-card">
+      {step === "who" && (
         <>
-          <div className="divider">o entrá como (datos de prueba)</div>
+          <h2 className="login-h">¿Quién sos?</h2>
           <div className="demo-users">
-            {DEMO_USERS.map((u) => (
-              <button key={u.email} type="button" onClick={() => requestCode(u.email)} disabled={busy}>
-                <b>{u.name}</b>
-                <span>{u.role}</span>
+            {people.map((p) => (
+              <button key={p.id} type="button" onClick={() => choose(p)}>
+                <b>{p.name}</b>
+                <span>{p.role}</span>
               </button>
             ))}
           </div>
         </>
       )}
+
+      {step === "password" && who && (
+        <form
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            login();
+          }}
+        >
+          <h2 className="login-h">Hola, {who.name}</h2>
+          {who.hasPassword ? (
+            <div className="field">
+              <label htmlFor="pw">Tu contraseña</label>
+              <input id="pw" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus required />
+            </div>
+          ) : (
+            <>
+              <p className="small muted" style={{ margin: 0 }}>
+                Es tu primera vez. Escribí el <b>código del equipo</b> que te pasó Martín; después vas a elegir tu propia contraseña.
+              </p>
+              <div className="field">
+                <label htmlFor="pw">Código del equipo</label>
+                <input id="pw" className="input" autoComplete="off" autoCapitalize="none" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus required />
+              </div>
+            </>
+          )}
+          <button className="btn block" disabled={busy || !password}>
+            {who.hasPassword ? "Entrar" : "Seguir"}
+          </button>
+          {who.hasPassword && <p className="small muted" style={{ margin: 0 }}>¿Te la olvidaste? Pedile a Martín que la restablezca desde Equipo.</p>}
+          <button type="button" className="btn ghost small" onClick={() => setStep("who")}>
+            No soy {who.name}
+          </button>
+        </form>
+      )}
+
+      {step === "setup" && who && (
+        <form
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setup();
+          }}
+        >
+          <h2 className="login-h">Elegí tu contraseña</h2>
+          <p className="small muted" style={{ margin: 0 }}>
+            Es sólo tuya: con ella vas a entrar a partir de ahora. Mínimo {minPassword} caracteres.
+          </p>
+          <div className="field">
+            <label htmlFor="np">Contraseña nueva</label>
+            <input id="np" className="input" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoFocus required minLength={minPassword} />
+          </div>
+          <div className="field">
+            <label htmlFor="rp">Repetila</label>
+            <input id="rp" className="input" type="password" autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} required minLength={minPassword} />
+          </div>
+          <button className="btn block" disabled={busy || newPassword.length < minPassword || !repeat}>
+            Guardar y entrar
+          </button>
+        </form>
+      )}
+
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }

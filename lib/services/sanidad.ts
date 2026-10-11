@@ -117,6 +117,12 @@ const norm = (s: string) =>
 export async function findEquipment(name: string) {
   const q = norm(name).replace(/heladera|frigo(rifico)?/, "nevera").replace(/arcon/, "congelador");
   const all = await db.foodEquipment.findMany({ where: { active: true }, orderBy: { sort: "asc" } });
+  // Código del equipo: "C1", "c 1", "la b3"
+  const code = q.match(/\b([a-z])\s?(\d{1,2})\b/);
+  if (code) {
+    const byCode = all.find((e) => norm(e.name).split(/\s+/).includes(code[1] + code[2]));
+    if (byCode) return byCode;
+  }
   const words = q.split(/\s+/).filter((w) => w.length > 1 && !["de", "la", "el", "del"].includes(w));
   return (
     all.find((e) => norm(e.name) === q) ??

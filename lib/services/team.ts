@@ -88,6 +88,7 @@ export async function teamOverview(_actor: Actor, date: string) {
       area: u.area,
       avatarColor: u.avatarColor,
       phone: u.phone,
+      hasPassword: !!u.passwordSetAt,
       shift: shift ? { start: shift.start, end: shift.end, date: fromDbDate(shift.date) } : null,
       status,
     };
@@ -100,4 +101,22 @@ export async function updatePhone(actor: Actor, userId: string, phone: string | 
   const value = phone?.trim() ? normalizePhone(phone) : null;
   if (value && !isValidPhone(value)) throw new ValidationError("Teléfono no válido.");
   return db.user.update({ where: { id: userId }, data: { phone: value } });
+}
+
+/** Restablecer la contraseña de alguien (sólo con permiso de personal): vuelve a entrar con el código del equipo. */
+export async function resetPassword(actor: Actor, userId: string) {
+  if (!can(actor, "personal")) throw new ForbiddenError("Sólo Martín puede restablecer contraseñas.");
+  const u = await db.user.findUnique({ where: { id: userId } });
+  if (!u) throw new ValidationError("Persona no encontrada.");
+  await db.$transaction([
+    db.user.update({ where: { id: userId }, data: { passwordHash: null, passwordSetAt: null } }),
+    db.session.deleteMany({ where: { userId } }),
+  ]);
+  return { ok: true, name: u.shortName };
+}
+
+/** Lista para la pantalla de entrada: sólo nombre, rol y si ya eligió contraseña. */
+export async function loginRoster() {
+  const users = await db.user.findMany({ where: { active: true }, orderBy: { createdAt: "asc" }, omit: { passwordHash: false } });
+  return users.map((u) => ({ id: u.id, name: u.shortName, role: ROLE_LABEL[u.role], hasPassword: !!u.passwordHash }));
 }

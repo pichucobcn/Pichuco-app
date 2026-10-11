@@ -43,7 +43,7 @@ Conversaciones 1 a 1 y grupos, respuestas, fotos y archivos (hasta 5 MB, guardad
 
 - Next.js 15 (App Router) + React 19 + TypeScript, web responsive / PWA
 - PostgreSQL + Prisma
-- Login por email con código de un solo uso (OTP)
+- Entrada con nombre y contraseña propia (la primera vez, con el código del equipo)
 - Pichuco AI: API de Claude con herramientas (tool use). El modelo **nunca** toca la base de datos: sólo llama a funciones validadas (`lib/ai/tools.ts`) que comprueban los permisos del usuario.
 
 ## Puesta en marcha
@@ -58,7 +58,7 @@ npm run dev                   # http://localhost:3000
 
 Para activar Pichuco AI con Claude, añadir `ANTHROPIC_API_KEY` al `.env`. Sin clave funciona en **modo demo** con un intérprete local que entiende las frases típicas (retrasos, ausencias, producción, avisos, “¿qué tenemos mañana?”, “¿quién trabaja esta noche?”…).
 
-Con `PICHUCO_DEMO_OTP=1` el código de acceso aparece en pantalla y hay botones para entrar como cada usuario. **Quitarlo en producción** y conectar un envío de email real en `app/api/auth/request/route.ts`.
+**Entrar:** cada persona toca su nombre y pone su contraseña. La primera vez usa el **código del equipo** (`PICHUCO_ACCESS_CODE`; en desarrollo, si no está, es `pichuco`) y elige su propia contraseña. Martín puede restablecer la de cualquiera desde Equipo: vuelve a entrar con el código del equipo.
 
 Tests: `npm test` (usan la base de `DATABASE_URL` y la re-siembran).
 
@@ -88,10 +88,8 @@ public/brand/        logo y personaje (provisionales)
 
 1. En Supabase: crear un proyecto en la región **West EU (Ireland)**, con una contraseña de base de datos sólo de letras y números.
 2. En el proyecto, botón **Connect → ORMs → Prisma**: copiar `DATABASE_URL` (Transaction pooler, puerto 6543, con `?pgbouncer=true`) y `DIRECT_URL` (Session pooler, puerto 5432), poniendo la contraseña en lugar de `[YOUR-PASSWORD]`.
-3. En Vercel: *Add New → Project*, importar este repositorio y añadir las variables `DATABASE_URL`, `DIRECT_URL`, `PICHUCO_DEMO_OTP=1` y `PICHUCO_ACCESS_CODE=<código del equipo>`.
+3. En Vercel: *Add New → Project*, importar este repositorio y añadir las variables `DATABASE_URL`, `DIRECT_URL` y `PICHUCO_ACCESS_CODE=<código del equipo>` (la contraseña de la primera vez).
 4. *Deploy*. El script `vercel-build` crea las tablas y, si la base está vacía, carga usuarios, catálogo y datos de prueba (`prisma/ensure-seed.ts`); en despliegues siguientes no toca los datos. Las funciones corren en Dublín, junto a la base (`vercel.json`).
-
-Con `PICHUCO_DEMO_OTP=1` el código de login aparece en pantalla: sólo es seguro junto con `PICHUCO_ACCESS_CODE`. Para uso real hay que conectar un servicio de email y quitar el modo demo.
 
 ## Marca
 
