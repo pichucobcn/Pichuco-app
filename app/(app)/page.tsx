@@ -40,26 +40,34 @@ export default async function Home() {
       : []),
   ];
 
+  const tones = ["navy", "ochre", "cream", "wine", "navy", "ochre"];
+
   return (
-    <main>
-      <section className="ai-hero" aria-label="Pichuco">
-        <div className="head">
-          <span className={`status-dot ${mode === "demo" ? "demo" : ""}`}>{mode === "claude" ? "En línea" : "En línea · demo"}</span>
-          <span className="spacer" />
-          <Link href="/pichuco" className="link">
-            Historial
-          </Link>
-        </div>
-        <div className="body">
-          <img src="/brand/pichuco-solo.png" alt="Pichuco con su bandoneón" className="mascot" />
-          <div className="bubble">{g.text}</div>
+    <main className="home">
+      <section className="home-hero">
+        <img src="/brand/pichuco-crema.png" alt="Pichuco con su bandoneón" className="hero-mascot" />
+        <img src="/brand/logo-ocre.png" alt="Pichuco — Pizzería Porteña" className="hero-logo" />
+      </section>
+
+      <section className="home-ai" aria-label="Pichuco">
+        <div className="greet-card">
+          <img src="/brand/pichuco-cara.png" alt="" className="ai-face lg" />
+          <div className="greet-body">
+            <div className="greet-text">{g.text}</div>
+            <div className="greet-meta">
+              <span className={`status-dot ${mode === "demo" ? "demo" : ""}`}>{mode === "claude" ? "En línea" : "En línea · demo"}</span>
+              <Link href="/pichuco" className="link">
+                Ver conversación
+              </Link>
+            </div>
+          </div>
         </div>
         <PichucoChat initial={[]} compact />
       </section>
 
       <nav className="modules" aria-label="Accesos principales">
-        {modules.map((m) => (
-          <Link key={m.href} href={m.href} className="module">
+        {modules.map((m, i) => (
+          <Link key={m.href} href={m.href} className={`module ${tones[i % tones.length]}`}>
             {m.badge > 0 && <span className="badge">{m.badge}</span>}
             <div className="ico">
               <Icon name={m.icon} />

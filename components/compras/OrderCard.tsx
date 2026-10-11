@@ -4,10 +4,10 @@ import { fromDbDate, relativeDay } from "@/lib/dates";
 
 export const STATUS_TONE: Record<OrderStatus, string> = {
   BORRADOR: "brown",
-  PENDIENTE_APROBACION: "amber",
-  APROBADO: "red",
-  ENVIADO: "brown",
-  CONFIRMADO: "green",
+  PENDIENTE_APROBACION: "red",
+  APROBADO: "navy",
+  ENVIADO: "navy",
+  CONFIRMADO: "amber",
   ENTREGADO: "green",
   CANCELADO: "brown",
 };

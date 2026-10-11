@@ -130,6 +130,9 @@ export function PichucoChat({
           send(text);
         }}
       >
+        <span className="composer-spark" aria-hidden="true">
+          <Icon name="spark" />
+        </span>
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
