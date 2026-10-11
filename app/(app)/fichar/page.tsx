@@ -22,7 +22,7 @@ export default async function FicharPage() {
   return (
     <main>
       <PageTitle title="Fichar" />
-      <section className="card clock-face fileteado">
+      <section className="card clock-face">
         <div className="now">{nowHHMM()}</div>
         <div className="muted small">{prettyDate(today)}{shift ? ` · Turno ${shift.start}–${shift.end}` : " · Sin turno hoy"}</div>
         <span className={`clock-state ${stateClass}`}>{journey.state === "fuera" ? "Fuera de turno" : journey.state === "en pausa" ? "En pausa" : "Trabajando"}</span>

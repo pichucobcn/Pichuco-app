@@ -88,14 +88,9 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none;
   background: var(--warm-white); box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
 }
-/* Filete: rótulo centrado entre dos líneas que terminan en una voluta */
+/* Filete: rótulo centrado entre dos líneas finas */
 .filete { display: flex; align-items: center; gap: 12px; color: var(--burgundy); margin: 26px 0 12px; }
-.filete::before, .filete::after {
-  content: ""; flex: 1; height: 24px;
-  background:
-    url("/brand/ornamentos/remate-vino.png") right center / auto 24px no-repeat,
-    linear-gradient(var(--line-strong), var(--line-strong)) left center / calc(100% - 30px) 1px no-repeat;
-}
+.filete::before, .filete::after { content: ""; flex: 1; height: 1px; background: var(--line-strong); }
 .filete::before { transform: scaleX(-1); }
 .filete h2 { font-size: 14px; font-weight: 500; white-space: nowrap; }
 .eyebrow { font-size: 11px; color: var(--burgundy); font-weight: 500; }
@@ -446,8 +441,7 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 /* ── Inicio ───────────────────────────────────────────── */
 .home { color: var(--brown); }
 .home-hero { display: grid; justify-items: center; margin: -6px 0 6px; }
-.hero-mascot { width: 210px; height: 178px; object-fit: cover; object-position: center top; display: block; }
-.hero-logo { width: 280px; max-width: 80%; height: auto; margin-top: 4px; filter: drop-shadow(0 2px 0 rgba(28, 44, 85, 0.55)); }
+.hero-logo { width: 280px; max-width: 80%; height: auto; margin-top: 10px; }
 .home-ai { background: var(--cream); border-radius: 22px; padding: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); }
 .greet-card { display: flex; gap: 12px; align-items: flex-start; background: var(--warm-white); border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--line); }
 .greet-body { flex: 1; min-width: 0; }
@@ -480,8 +474,6 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .module .badge { background: var(--cream); color: var(--burgundy); box-shadow: 0 0 0 2px rgba(53, 26, 23, 0.15); }
 .module.cream .badge { background: var(--burgundy); color: var(--cream); }
 
-/* Fichar: estampa con fileteado */
-.clock-face.fileteado { padding: 36px 20px 30px; background-size: auto 40px; }
 .clock-face .now { color: var(--navy); }
 
 /* Login: el dibujo sobre una estampa crema */
@@ -621,18 +613,8 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .temp-input { flex: 1; max-width: none; min-width: 0; }
 @media print { .allergen-scroll { overflow: visible; margin: 0; padding: 0; } .allergen-table .dish-name { position: static; box-shadow: none; } }
 
-/* Ornamentos vintage (volutas recoloreadas): guarda, flor y esquineros */
+/* Ornamento: sólo la guarda dorada, y sólo sobre el burdeos */
 .guarda { height: 46px; max-width: 320px; margin: 4px auto 10px; background: url("/brand/ornamentos/guarda-oro.png") center / contain no-repeat; }
-.guarda.vino { background-image: url("/brand/ornamentos/guarda-vino.png"); }
-.flor-pie { height: 46px; margin: 22px auto 6px; background: url("/brand/ornamentos/flor-oro.png") center / contain no-repeat; }
-.fileteado {
-  background-image:
-    url("/brand/ornamentos/esquina-tl-vino.png"), url("/brand/ornamentos/esquina-tr-vino.png"),
-    url("/brand/ornamentos/esquina-bl-vino.png"), url("/brand/ornamentos/esquina-br-vino.png");
-  background-position: 12px 12px, calc(100% - 12px) 12px, 12px calc(100% - 12px), calc(100% - 12px) calc(100% - 12px);
-  background-size: auto 44px;
-  background-repeat: no-repeat;
-}
 @media print { .guarda { display: none; } }
 
 /* Entrada */

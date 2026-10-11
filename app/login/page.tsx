@@ -10,7 +10,7 @@ export default async function LoginPage() {
   return (
     <main className="login">
       <div className="box">
-        <div className="poster fileteado">
+        <div className="poster">
           <img src="/brand/pichuco.png" alt="Pichuco — Pizzería Porteña" className="mascot" />
         </div>
         <div className="guarda" aria-hidden="true" />
