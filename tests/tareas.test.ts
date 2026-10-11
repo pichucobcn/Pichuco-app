@@ -30,3 +30,17 @@ test("lo que no se terminó ayer aparece como pendiente de días anteriores", as
   const after = await listTasks(jp, { status: "ABIERTAS", to: addDays(todayISO(), -1) });
   assert.ok(!after.some((x) => x.id === t.id));
 });
+
+test("Pichuco: producción sin cantidad (estirar fugazzetas, fainás) se carga igual", async () => {
+  const { executeTool } = await import("../lib/ai/tools");
+  const jp = await user("juanpablo@pichuco.es");
+  const tomorrow = addDays(todayISO(), 1);
+  for (const item of ["estirar fugazzetas", "fainás"]) {
+    const r = await executeTool(jp, "create_production_task", { item, date: tomorrow }, { input: "mañana estirar fugazzetas y fainás", viaAi: true });
+    assert.equal(r.isError, false, r.content);
+  }
+  const r = await executeTool(jp, "create_production_task", { item: "milanesas", quantity: 30, date: tomorrow }, { viaAi: true });
+  assert.equal(r.isError, false, r.content);
+  const titles = (await listTasks(jp, { date: tomorrow })).map((t) => t.title);
+  for (const t of ["Estirar fugazzetas", "Fainás", "30 milanesas"]) assert.ok(titles.includes(t), `${t} en ${titles.join(" | ")}`);
+});

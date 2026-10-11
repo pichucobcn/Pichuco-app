@@ -192,10 +192,11 @@ export const TOOLS: Record<string, ToolDef> = {
     },
   },
   create_production_task: {
-    description: "Registra producción de cocina: qué preparar, cantidad y para cuándo (p. ej. 10 milanesas para mañana, 8 kg de masa).",
+    description:
+      "Registra producción de cocina: qué preparar y para cuándo (p. ej. 10 milanesas para mañana, 8 kg de masa, estirar fugazzetas). La cantidad es opcional: si no la dicen, no la inventes. Una llamada por cada cosa a preparar.",
     schema: z.object({
-      item: z.string(),
-      quantity: z.number().positive(),
+      item: z.string().trim().min(1),
+      quantity: z.number().positive().optional().nullable(),
       unit: z.string().optional(),
       date: optDate,
       due_time: z.string().optional(),
@@ -205,28 +206,31 @@ export const TOOLS: Record<string, ToolDef> = {
     input_schema: {
       type: "object",
       properties: {
-        item: { type: "string", description: "Qué producir, en plural si corresponde: 'milanesas', 'masa', 'salsa de tomate'." },
-        quantity: { type: "number" },
+        item: { type: "string", description: "Qué producir, como lo dijeron: 'milanesas', 'masa', 'estirar fugazzetas', 'fainás'." },
+        quantity: { type: "number", description: "Sólo si la dijeron." },
         unit: { type: "string", description: "Unidad si no son unidades sueltas: kg, l, bandejas…" },
         date: dateProp,
         due_time: taskProps.due_time,
         assignee_name: taskProps.assignee_name,
         priority: taskProps.priority,
       },
-      required: ["item", "quantity", "date"],
+      required: ["item", "date"],
     },
     mutates: true,
     run: async (actor, i, ctx) => {
-      const n = Number.isInteger(i.quantity) ? i.quantity : i.quantity.toFixed(1);
-      const title = `${n}${i.unit ? " " + i.unit : ""} ${i.unit ? "de " : ""}${i.item}`.replace(/de de /, "de ");
+      const item = i.item.charAt(0).toUpperCase() + i.item.slice(1);
+      const title =
+        i.quantity == null
+          ? item
+          : `${Number.isInteger(i.quantity) ? i.quantity : i.quantity.toFixed(1)}${i.unit ? " " + i.unit : ""} ${i.unit ? "de " : ""}${i.item}`.replace(/de de /, "de ");
       const t = await createTask(
         actor,
         {
           title,
           kind: "PRODUCCION",
           area: "COCINA",
-          quantity: i.quantity,
-          unit: i.unit,
+          quantity: i.quantity ?? null,
+          unit: i.quantity == null ? null : i.unit,
           date: i.date,
           dueTime: i.due_time,
           assigneeName: i.assignee_name,
