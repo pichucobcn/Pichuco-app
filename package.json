@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "postinstall": "prisma generate",
-    "vercel-build": "tsx prisma/check-env.ts && prisma db push --skip-generate && tsx prisma/ensure-seed.ts && tsx prisma/cargar-horarios.ts --si-falta && tsx prisma/cargar-equipos.ts && next build",
+    "vercel-build": "tsx prisma/check-env.ts && prisma db push --skip-generate && tsx prisma/ensure-seed.ts && tsx prisma/cargar-horarios.ts --si-falta && tsx prisma/cargar-equipos.ts && tsx prisma/limpiar-demo.ts --una-vez && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "db:push": "prisma db push",
@@ -14,6 +14,7 @@
     "db:catalogo": "tsx prisma/cargar-catalogo.ts",
     "db:horarios": "tsx prisma/cargar-horarios.ts",
     "db:equipos": "tsx prisma/cargar-equipos.ts",
+    "db:limpiar-demo": "tsx prisma/limpiar-demo.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts"
   },

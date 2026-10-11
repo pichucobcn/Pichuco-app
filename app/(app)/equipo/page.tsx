@@ -10,6 +10,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { LogoutButton } from "./LogoutButton";
 import { PhoneEditor } from "./PhoneEditor";
 import { ChangePassword, ResetPassword } from "./PasswordControls";
+import { availableDatasets } from "@/lib/services/exportar";
 import { MIN_PASSWORD } from "@/lib/auth";
 import { formatPhone } from "@/lib/phone";
 
@@ -90,6 +91,11 @@ export default async function EquipoPage() {
             </span>
           ))}
         </div>
+        {availableDatasets(user).length > 0 && (
+          <Link href="/exportar" className="btn secondary">
+            Exportar datos (Excel)
+          </Link>
+        )}
         <Link href="/historial" className="btn secondary">
           <Icon name="history" /> {can(user, "auditoria") ? "Historial de acciones (todo el equipo)" : "Mi historial de acciones"}
         </Link>

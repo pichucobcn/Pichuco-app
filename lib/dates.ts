@@ -124,3 +124,8 @@ export function parseSpanishDate(text: string, today = todayISO()): string | nul
   }
   return null;
 }
+
+/** Día de servicio: lo que pasa antes de las 05:00 cuenta para el día anterior (el servicio termina pasada la medianoche). */
+export function serviceDayOf(d: Date): string {
+  return dateOf(new Date(d.getTime() - 5 * 3_600_000));
+}

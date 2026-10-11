@@ -32,9 +32,9 @@ export default async function RegistrosPage() {
             <Link className="btn" href={`/sanidad/informe?from=${addDays(today, -30)}&to=${today}`}>
               Últimos 30 días
             </Link>
-            <a className="btn secondary" href={`/api/sanidad/export?from=${addDays(today, -30)}&to=${today}`}>
-              Descargar CSV
-            </a>
+            <Link className="btn secondary" href="/exportar">
+              Exportar (todo el histórico)
+            </Link>
           </div>
         </section>
       )}

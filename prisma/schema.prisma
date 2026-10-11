@@ -662,3 +662,9 @@ model NonConformity {
   viaAi            Boolean   @default(false)
   createdAt        DateTime  @default(now())
 }
+
+/// Marcas de tareas de mantenimiento que se hacen una sola vez (p. ej. borrar los datos de prueba).
+model AppFlag {
+  key String   @id
+  at  DateTime @default(now())
+}

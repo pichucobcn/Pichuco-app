@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "../db";
-import { addDays, dateOf, isISODate, timeOf, toDbDate, todayISO } from "../dates";
+import { addDays, dateOf, isISODate, serviceDayOf, timeOf, toDbDate, todayISO } from "../dates";
 import { assertCan, can, NotFoundError, ValidationError } from "../permissions";
 import { audit } from "./audit";
 import type { Actor, ActionContext } from "./context";
@@ -43,9 +43,7 @@ const FREQ_DAYS: Record<string, number> = { DIARIA: 1, SEMANAL: 7, MENSUAL: 30 }
 const DAY_CUTOFF_HOURS = 5;
 /** Desde esta hora tocan las lecturas de cierre y la limpieza diaria. */
 const CLOSING_HOUR = 21;
-export function serviceDayOf(d: Date): string {
-  return dateOf(new Date(d.getTime() - DAY_CUTOFF_HOURS * 3_600_000));
-}
+export { serviceDayOf };
 export function currentServiceDay(): string {
   return serviceDayOf(new Date());
 }

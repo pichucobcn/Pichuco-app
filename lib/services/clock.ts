@@ -1,6 +1,6 @@
 import type { ClockEvent, ClockType } from "@prisma/client";
 import { db } from "../db";
-import { dateOf, timeOf, todayISO, toDbDate, addDays } from "../dates";
+import { serviceDayOf, timeOf, todayISO, toDbDate, addDays } from "../dates";
 import { assertCan, ValidationError } from "../permissions";
 import { audit } from "./audit";
 import type { Actor, ActionContext } from "./context";
@@ -52,7 +52,7 @@ export async function currentJourney(actor: Actor) {
   const last = await lastEvent(actor.id);
   const state = stateAfter(last);
   const events =
-    lastIn && (state !== "fuera" || dateOf(lastIn.at) === todayISO())
+    lastIn && (state !== "fuera" || serviceDayOf(lastIn.at) === serviceDayOf(new Date()))
       ? await db.clockEvent.findMany({ where: { userId: actor.id, at: { gte: lastIn.at } }, orderBy: { at: "asc" } })
       : [];
   return { state, events, worked: workedMinutes(events), allowed: ALLOWED[state] };
@@ -80,7 +80,7 @@ export async function myHistory(actor: Actor, days = 14) {
 function groupByDay(events: ClockEvent[]) {
   const map = new Map<string, ClockEvent[]>();
   for (const e of events) {
-    const d = dateOf(e.at);
+    const d = serviceDayOf(e.at);
     map.set(d, [...(map.get(d) ?? []), e]);
   }
   return [...map.entries()]
@@ -103,7 +103,7 @@ export async function teamClock(actor: Actor, date: string) {
     db.incident.findMany({ where: { date: toDbDate(date) } }),
   ]);
   return users.map((u) => {
-    const evs = events.filter((e) => e.userId === u.id && dateOf(e.at) === date);
+    const evs = events.filter((e) => e.userId === u.id && serviceDayOf(e.at) === date);
     return {
       user: { id: u.id, name: u.name, shortName: u.shortName },
       events: evs.map((e) => ({ type: e.type, label: LABEL[e.type], time: timeOf(e.at) })),
