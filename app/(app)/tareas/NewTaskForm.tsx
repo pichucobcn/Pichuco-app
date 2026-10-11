@@ -10,12 +10,14 @@ export function NewTaskForm({
   team,
   defaultKind,
   today,
+  label,
 }: {
   canProduce: boolean;
   canAssign: boolean;
   team: { id: string; name: string }[];
   defaultKind: string;
   today: string;
+  label?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,7 +56,7 @@ export function NewTaskForm({
   if (!open)
     return (
       <button className="btn add block" onClick={() => setOpen(true)}>
-        <Icon name="plus" size={18} /> Nueva {defaultKind === "PRODUCCION" ? "producción" : "tarea"}
+        <Icon name="plus" size={18} /> {label ?? `Nueva ${defaultKind === "PRODUCCION" ? "producción" : "tarea"}`}
       </button>
     );
 

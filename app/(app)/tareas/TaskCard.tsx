@@ -19,10 +19,10 @@ export type TaskCardData = {
   createdBy: string;
   createdByAi: boolean;
   comments: { id: string; author: string; body: string }[];
+  /** De un día anterior y sin terminar. */
+  overdue?: string | null;
 };
 
-const NEXT: Record<string, string> = { PENDIENTE: "EN_CURSO", EN_CURSO: "COMPLETADA", COMPLETADA: "PENDIENTE" };
-const NEXT_LABEL: Record<string, string> = { PENDIENTE: "Empezar", EN_CURSO: "Terminar", COMPLETADA: "Reabrir" };
 
 export function TaskCard({ task }: { task: TaskCardData }) {
   const router = useRouter();
@@ -30,15 +30,19 @@ export function TaskCard({ task }: { task: TaskCardData }) {
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string>();
-  const done = task.status === "COMPLETADA";
+  const [optimistic, setOptimistic] = useState<string | null>(null);
+  const status = optimistic ?? task.status;
+  const done = status === "COMPLETADA";
 
-  async function setStatus(status: string) {
+  async function setStatus(next: string) {
     setBusy(true);
     setError(undefined);
+    setOptimistic(next);
     try {
-      await api(`/api/tasks/${task.id}`, { status }, "PATCH");
+      await api(`/api/tasks/${task.id}`, { status: next }, "PATCH");
       router.refresh();
     } catch (e) {
+      setOptimistic(null);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -60,7 +64,7 @@ export function TaskCard({ task }: { task: TaskCardData }) {
   }
 
   return (
-    <article className={`card task ${done ? "done" : ""}`}>
+    <article className={`card task ${done ? "done" : ""} ${task.overdue && !done ? "overdue" : ""}`}>
       <button
         className="check"
         aria-label={done ? "Marcar como pendiente" : "Marcar como completada"}
@@ -74,12 +78,13 @@ export function TaskCard({ task }: { task: TaskCardData }) {
           {task.title}
         </div>
         <div className="meta">
-          {task.kind !== "GENERAL" && <span className="tag brown">{task.kindLabel}</span>}
-          <span className={`tag ${task.status === "EN_CURSO" ? "amber" : task.status === "COMPLETADA" ? "green" : "brown"}`}>{task.statusLabel}</span>
+          {task.overdue && !done && <span className="tag red">{task.overdue}</span>}
+          {task.kind !== "GENERAL" && task.kind !== "PRODUCCION" && <span className="tag brown">{task.kindLabel}</span>}
+          {status === "EN_CURSO" && <span className="tag amber">En curso</span>}
           {task.priority === "ALTA" && !done && <span className="tag solid-red">Prioridad alta</span>}
           {task.when && <span className="tag brown">{task.when}</span>}
           {task.who && <span className="tag brown">{task.who}</span>}
-          {task.createdByAi && <span className="tag ai">Pichuco AI</span>}
+          {task.comments.length > 0 && <span className="tag brown">{task.comments.length} coment.</span>}
         </div>
         {open && (
           <div className="stack" style={{ marginTop: 10 }}>
@@ -101,16 +106,11 @@ export function TaskCard({ task }: { task: TaskCardData }) {
             </div>
           </div>
         )}
-        {!done && (
+        {open && !done && (
           <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn small" disabled={busy} onClick={() => setStatus(NEXT[task.status])}>
-              {NEXT_LABEL[task.status]}
+            <button className="btn small secondary" disabled={busy} onClick={() => setStatus(status === "EN_CURSO" ? "PENDIENTE" : "EN_CURSO")}>
+              {status === "EN_CURSO" ? "Volver a pendiente" : "Marcar en curso"}
             </button>
-            {!open && (
-              <button className="btn small secondary" onClick={() => setOpen(true)}>
-                Detalle{task.comments.length ? ` (${task.comments.length})` : ""}
-              </button>
-            )}
           </div>
         )}
         {error && <p className="error">{error}</p>}

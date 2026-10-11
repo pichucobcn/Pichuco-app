@@ -280,7 +280,22 @@ details.card summary::-webkit-details-marker { display: none; }
 .task.done .check { background: var(--green); border-color: var(--green); }
 .task.done .title { text-decoration: line-through; color: var(--brown-soft); }
 .task.done { opacity: 0.8; }
-.task .title { font-weight: 700; font-size: 16.5px; line-height: 1.3; }
+.task .title { font-weight: 700; font-size: 16.5px; line-height: 1.3; padding-top: 6px; }
+.task { padding: 12px 14px; }
+.task .check { width: 38px; height: 38px; border-radius: 10px; margin-top: 0; border-width: 2px; }
+.task .meta:empty { display: none; }
+.task.overdue { box-shadow: inset 4px 0 0 var(--burgundy), var(--shadow); }
+.task.done .meta { display: none; }
+.task.done { opacity: 0.65; box-shadow: none; background: transparent; }
+/* Progreso del día */
+.progress-card { display: grid; gap: 8px; }
+.progress-card .nums { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.progress-card .big { font-family: var(--font-display); font-size: 26px; line-height: 1; color: var(--navy); }
+.progress-bar { height: 8px; border-radius: 4px; background: rgba(53, 26, 23, 0.1); overflow: hidden; }
+.progress-bar i { display: block; height: 100%; background: var(--green); border-radius: 4px; transition: width 0.3s; }
+.quick-add { display: flex; gap: 8px; }
+.quick-add .input { flex: 1; min-width: 0; }
+.done-sep { font-family: var(--font-label); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brown-soft); margin: 10px 2px 0; }
 .task .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
 .prod-title { font-family: var(--font-display); font-weight: 400; font-size: 21px; letter-spacing: 0; }
 

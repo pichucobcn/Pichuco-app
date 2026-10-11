@@ -7,6 +7,7 @@ import { fromDbDate, relativeDay, todayISO, addDays } from "@/lib/dates";
 import { PageTitle } from "@/components/PageTitle";
 import { TaskCard, type TaskCardData } from "./TaskCard";
 import { NewTaskForm } from "./NewTaskForm";
+import { QuickAdd } from "./QuickAdd";
 
 const TABS = [
   { id: "hoy", label: "Hoy" },
@@ -30,11 +31,18 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
           : tab === "hechas"
             ? { status: "COMPLETADA" as const }
             : { status: "ABIERTAS" as const };
-  const [tasks, team] = await Promise.all([listTasks(user, filter), listTeam()]);
+  const dayView = tab === "hoy" || tab === "manana";
+  const viewDate = tab === "manana" ? addDays(today, 1) : today;
+  const [tasks, team, overdue] = await Promise.all([
+    listTasks(user, filter),
+    listTeam(),
+    // Lo que quedó sin terminar de días anteriores aparece en "Hoy"
+    tab === "hoy" ? listTasks(user, { status: "ABIERTAS", to: addDays(today, -1) }) : Promise.resolve([]),
+  ]);
   const canProduce = can(user, "produccion");
   const canAssign = can(user, "tareas_crear");
 
-  const cards: TaskCardData[] = tasks.map((t) => ({
+  const toCard = (t: (typeof tasks)[number], late = false): TaskCardData => ({
     id: t.id,
     title: t.title,
     description: t.description,
@@ -44,12 +52,26 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
     statusLabel: STATUS_LABEL[t.status],
     priority: t.priority,
     priorityLabel: PRIORITY_LABEL[t.priority],
-    when: t.date ? `${relativeDay(fromDbDate(t.date))}${t.dueTime ? ` · antes de las ${t.dueTime}` : ""}` : t.dueTime ? `antes de las ${t.dueTime}` : null,
-    who: t.assignee?.shortName ?? (t.area ? AREA_LABEL[t.area] : null),
+    // En "Hoy"/"Mañana" el día ya se sabe; y no hace falta poner el propio nombre.
+    when:
+      t.date && !(dayView && !late)
+        ? `${relativeDay(fromDbDate(t.date))}${t.dueTime ? ` · antes de las ${t.dueTime}` : ""}`
+        : t.dueTime
+          ? `antes de las ${t.dueTime}`
+          : null,
+    who: t.assigneeId === user.id ? null : (t.assignee?.shortName ?? (t.area ? AREA_LABEL[t.area] : null)),
     createdBy: t.createdBy.shortName,
     createdByAi: t.createdByAi,
     comments: t.comments.map((c) => ({ id: c.id, author: c.author.shortName, body: c.body })),
-  }));
+    overdue: late && t.date ? `Pendiente de ${relativeDay(fromDbDate(t.date))}` : null,
+  });
+  const lateCards = overdue.map((t) => toCard(t, true));
+  const all = [...lateCards, ...tasks.map((t) => toCard(t))];
+  const pending = all.filter((c) => c.status !== "COMPLETADA");
+  const done = all.filter((c) => c.status === "COMPLETADA");
+  const cards = dayView ? pending : all;
+  const totalDay = tasks.length;
+  const doneDay = tasks.filter((t) => t.status === "COMPLETADA").length;
 
   return (
     <main>
@@ -62,23 +84,55 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
 
-      <NewTaskForm
-        canProduce={canProduce}
-        canAssign={canAssign}
-        team={team.map((u) => ({ id: u.id, name: u.shortName }))}
-        defaultKind={tab === "produccion" ? "PRODUCCION" : "GENERAL"}
-        today={today}
-      />
+      {dayView && totalDay + lateCards.length > 0 && (
+        <section className="card progress-card" aria-label="Progreso">
+          <div className="nums">
+            <span className="big">
+              {doneDay} de {totalDay}
+            </span>
+            <span className="small muted">
+              {pending.length === 0 ? "¡Todo hecho!" : `${pending.length === 1 ? "Queda 1" : `Quedan ${pending.length}`}${lateCards.length ? ` (${lateCards.length} de días anteriores)` : ""}`}
+            </span>
+          </div>
+          <div className="progress-bar">
+            <i style={{ width: `${totalDay ? Math.round((doneDay / totalDay) * 100) : 0}%` }} />
+          </div>
+        </section>
+      )}
+
+      {dayView && (
+        <div style={{ marginTop: 12 }}>
+          <QuickAdd date={viewDate} label={tab === "manana" ? "mañana" : "hoy"} />
+        </div>
+      )}
 
       <div className="stack" style={{ marginTop: 12 }}>
-        {cards.length === 0 ? (
+        {cards.length === 0 && done.length === 0 ? (
           <div className="empty">
-            <img src="/brand/pichuco-solo.png" alt="" />
-            <p>Nada por acá. Podés crear una tarea o decirle a Pichuco: “Mañana hay que preparar 10 milanesas”.</p>
+            <p>Nada por acá. Agregá una tarea o decile a Pichuco: “Mañana hay que preparar 10 milanesas”.</p>
           </div>
         ) : (
           cards.map((c) => <TaskCard key={c.id} task={c} />)
         )}
+        {dayView && done.length > 0 && (
+          <>
+            <p className="done-sep">Hechas ({done.length})</p>
+            {done.map((c) => (
+              <TaskCard key={c.id} task={c} />
+            ))}
+          </>
+        )}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <NewTaskForm
+          canProduce={canProduce}
+          canAssign={canAssign}
+          team={team.map((u) => ({ id: u.id, name: u.shortName }))}
+          defaultKind={tab === "produccion" ? "PRODUCCION" : "GENERAL"}
+          today={viewDate}
+          label={dayView ? "Más opciones (hora, responsable…)" : undefined}
+        />
       </div>
     </main>
   );
