@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma db push --skip-generate && tsx prisma/ensure-seed.ts && next build",
+    "vercel-build": "tsx prisma/check-env.ts && prisma db push --skip-generate && tsx prisma/ensure-seed.ts && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "db:push": "prisma db push",
