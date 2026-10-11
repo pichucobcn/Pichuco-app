@@ -6,7 +6,7 @@ import type { Actor } from "../services/context";
 import { localAgent } from "./local";
 import { CLAUDE_TOOLS, executeTool, type AiAction } from "./tools";
 
-const MODEL = process.env.PICHUCO_AI_MODEL || "claude-opus-5-5";
+const MODEL = process.env.PICHUCO_AI_MODEL || "claude-sonnet-5-5";
 // Respuestas de chat operativo: "low" da respuestas rápidas; subir a "medium" si hace falta más razonamiento.
 const EFFORT = (process.env.PICHUCO_AI_EFFORT || "low") as "low" | "medium" | "high";
 const MAX_TOOL_ROUNDS = 8;
