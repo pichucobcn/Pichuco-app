@@ -46,7 +46,6 @@ export default async function Home() {
     <main className="home">
       <section className="home-hero">
         <img src="/brand/logo-crema.png" alt="Pichuco — Pizzería Porteña" className="hero-logo" />
-        <div className="guarda" aria-hidden="true" />
       </section>
 
       <section className="home-ai" aria-label="Pichuco">

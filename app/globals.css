@@ -440,7 +440,7 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 
 /* ── Inicio ───────────────────────────────────────────── */
 .home { color: var(--brown); }
-.home-hero { display: grid; justify-items: center; margin: -6px 0 6px; }
+.home-hero { display: grid; justify-items: center; margin: -4px 0 18px; }
 .hero-logo { width: 280px; max-width: 80%; height: auto; margin-top: 10px; }
 .home-ai { background: var(--cream); border-radius: 22px; padding: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); }
 .greet-card { display: flex; gap: 12px; align-items: flex-start; background: var(--warm-white); border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--line); }
@@ -483,7 +483,6 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 }
 .login .poster .mascot { width: 230px; max-width: 72%; margin: 0 auto; display: block; }
 .login .card { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); }
-.login .guarda { display: block; }
 
 /* ══ Fase 2 ═══════════════════════════════════════════════ */
 .display-sm { font-family: var(--font-display); font-weight: 400; font-size: 20px; color: var(--burgundy); }
@@ -613,12 +612,9 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 .temp-input { flex: 1; max-width: none; min-width: 0; }
 @media print { .allergen-scroll { overflow: visible; margin: 0; padding: 0; } .allergen-table .dish-name { position: static; box-shadow: none; } }
 
-/* Ornamento: sólo la guarda dorada, y sólo sobre el burdeos */
-.guarda { height: 46px; max-width: 320px; margin: 4px auto 10px; background: url("/brand/ornamentos/guarda-oro.png") center / contain no-repeat; }
-@media print { .guarda { display: none; } }
+
 
 /* Entrada */
 .login-card { text-align: left; padding-top: 22px; }
 .login-h { font-family: var(--font-display); font-size: 24px; color: var(--burgundy); margin: 0; }
 .login .btn { background: var(--navy); }
-.home-hero .guarda { width: 300px; max-width: 86%; margin: 8px auto 2px; }

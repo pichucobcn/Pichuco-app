@@ -13,7 +13,6 @@ export default async function LoginPage() {
         <div className="poster">
           <img src="/brand/pichuco.png" alt="Pichuco — Pizzería Porteña" className="mascot" />
         </div>
-        <div className="guarda" aria-hidden="true" />
         <LoginForm people={await loginRoster()} minPassword={MIN_PASSWORD} />
       </div>
     </main>
