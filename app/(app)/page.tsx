@@ -71,6 +71,7 @@ export default async function Home() {
         ))}
       </nav>
 
+      <div className="guarda pie" aria-hidden="true" />
     </main>
   );
 }
