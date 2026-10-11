@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pichuco",
-  description: "Hablale a Pichuco. Pichuco se encarga.",
+  description: "Centro operativo de Pichuco Pizzería Porteña.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/brand/icon-192.png", apple: "/brand/icon-512.png" },
   appleWebApp: { capable: true, title: "Pichuco", statusBarStyle: "default" },

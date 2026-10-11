@@ -42,9 +42,8 @@ export default async function Home() {
 
   return (
     <main>
-      <section className="ai-hero" aria-labelledby="ai-title">
+      <section className="ai-hero" aria-label="Pichuco">
         <div className="head">
-          <h2 id="ai-title">Pichuco AI</h2>
           <span className={`status-dot ${mode === "demo" ? "demo" : ""}`}>{mode === "claude" ? "En línea" : "En línea · demo"}</span>
           <span className="spacer" />
           <Link href="/pichuco" className="link">
@@ -52,7 +51,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="body">
-          <img src="/brand/pichuco.png" alt="Pichuco con su bandoneón" className="mascot" />
+          <img src="/brand/pichuco-solo.png" alt="Pichuco con su bandoneón" className="mascot" />
           <div className="bubble">{g.text}</div>
         </div>
         <PichucoChat initial={[]} compact />
@@ -72,7 +71,6 @@ export default async function Home() {
         ))}
       </nav>
 
-      <p className="tagline-foot">Hablale a Pichuco. Pichuco se encarga.</p>
     </main>
   );
 }

@@ -12,6 +12,8 @@
   --wine-deep: #540c11;
   --on-dark-muted: rgba(252, 240, 214, 0.74);
   --on-dark-line: rgba(252, 240, 214, 0.24);
+  --ochre: #c8902f;
+  --ochre-light: #e2b45c;
   --cream: #fcf0d6;
   --cream-2: #f5e4c0;
   --brown: #351a17;
@@ -37,12 +39,6 @@ body {
   font-family: var(--font-body);
   color: var(--cream);
   background-color: var(--burgundy);
-  /* textura de papel impreso sutil */
-  background-image:
-    radial-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px),
-    radial-gradient(rgba(255, 240, 210, 0.035) 1px, transparent 1px);
-  background-size: 7px 7px, 13px 13px;
-  background-position: 0 0, 3px 5px;
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -51,6 +47,22 @@ body {
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3 { margin: 0; font-weight: 400; }
+/* Fondo vintage: burdeos con pátina ocre, grano de papel y bordes gastados */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .89 0 0 0 0 .7 0 0 0 0 .36 0 0 0 .5 -.12'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .78 0 0 0 0 .56 0 0 0 0 .18 0 0 0 1.1 -.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 55% at 12% 0%, rgba(200, 144, 47, 0.26), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(200, 144, 47, 0.2), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(40, 6, 8, 0.45) 100%);
+  background-size: 220px 220px, 900px 900px, 100% 100%, 100% 100%, 100% 100%;
+}
+
 :focus-visible { outline: 2.5px solid var(--burgundy); outline-offset: 2px; }
 
 /* Rótulo de cartel: la tipografía de botones, etiquetas y secciones */
@@ -350,7 +362,6 @@ table.simple th { font-family: var(--font-label); font-weight: 500; font-size: 1
 
 .empty { text-align: center; padding: 26px 12px; color: var(--brown-soft); }
 .empty img { width: 110px; }
-.tagline-foot { text-align: center; font-family: var(--font-script); color: var(--burgundy); font-size: 24px; margin: 26px 0 6px; opacity: 0.9; }
 
 @media (min-width: 900px) {
   .shell { max-width: 640px; }
@@ -393,7 +404,6 @@ table.simple th { font-family: var(--font-label); font-weight: 500; font-size: 1
     linear-gradient(var(--on-dark-line), var(--on-dark-line)) center / 100% 1px no-repeat,
     radial-gradient(circle, var(--cream) 2.2px, transparent 2.6px) right center / 7px 7px no-repeat;
 }
-.tagline-foot { color: var(--cream); opacity: 0.85; }
 
 /* Botones sobre el fondo: crema con filete rojo */
 .btn {

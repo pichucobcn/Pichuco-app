@@ -61,7 +61,7 @@ async function main() {
   const u: Record<string, string> = {};
   for (const data of USERS) u[data.shortName] = (await db.user.create({ data })).id;
 
-  // Horario semanal real (Martín no tiene turno fijo)
+  // Horario semanal real
   await loadSchedule(db);
 
   const ev = (kind: "ENTREGA", date: string, time: string, title: string, extra: object = {}) =>

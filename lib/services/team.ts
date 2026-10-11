@@ -54,7 +54,7 @@ export async function shiftsForDate(date: string) {
   const fromWeek = weekly
     .filter((w) => !overridden.has(w.userId))
     .map((w) => ({ id: w.id, userId: w.userId, date: toDbDate(date), start: w.start, end: w.end, note: null as string | null, user: w.user }));
-  return [...dated, ...fromWeek].sort((a, b) => a.start.localeCompare(b.start));
+  return [...dated, ...fromWeek].sort((a, b) => a.start.localeCompare(b.start) || a.user.shortName.localeCompare(b.user.shortName));
 }
 
 export async function shiftFor(userId: string, date: string) {

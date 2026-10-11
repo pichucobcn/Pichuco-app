@@ -83,12 +83,12 @@ test("fichaje respeta la secuencia", async () => {
   await assert.rejects(clock(eva, "SALIDA", undefined), /No podés/);
 });
 
-test("horario semanal: el viernes trabajan Gian, Juan Pablo y Eva; un turno con fecha lo reemplaza", async () => {
+test("horario semanal: el viernes trabajan Gian, Juan Pablo, Eva y Martín; un turno con fecha lo reemplaza", async () => {
   const { shiftsForDate, shiftFor } = await import("../lib/services/team");
   let friday = todayISO();
   while (new Date(friday + "T00:00:00Z").getUTCDay() !== 5) friday = addDays(friday, 1);
   const s = await shiftsForDate(friday);
-  assert.deepEqual(s.map((x) => `${x.user.shortName} ${x.start}-${x.end}`), ["Gian 17:00-00:00", "Juan Pablo 17:00-00:00", "Eva 19:00-01:00"]);
+  assert.deepEqual(s.map((x) => `${x.user.shortName} ${x.start}-${x.end}`), ["Gian 17:00-00:00", "Juan Pablo 17:00-00:00", "Eva 19:00-01:00", "Martín 19:00-01:00"]);
   let tuesday = friday;
   while (new Date(tuesday + "T00:00:00Z").getUTCDay() !== 2) tuesday = addDays(tuesday, 1);
   assert.equal((await shiftsForDate(tuesday)).length, 0);

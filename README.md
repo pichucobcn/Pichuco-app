@@ -1,6 +1,6 @@
 # Pichuco App
 
-Centro operativo de **Pichuco Pizzería Porteña**. *Hablale a Pichuco. Pichuco se encarga.*
+Centro operativo de **Pichuco Pizzería Porteña**.
 
 Prototipo con:
 
