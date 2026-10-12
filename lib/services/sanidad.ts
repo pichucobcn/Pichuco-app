@@ -41,7 +41,7 @@ const FREQ_DAYS: Record<string, number> = { DIARIA: 1, SEMANAL: 7, MENSUAL: 30 }
 // El servicio termina pasada la medianoche: lo hecho antes de las 05:00 cuenta para el día anterior.
 
 const DAY_CUTOFF_HOURS = 5;
-/** Desde esta hora tocan las lecturas de cierre y la limpieza diaria. */
+/** Desde esta hora toca la limpieza diaria. */
 const CLOSING_HOUR = 21;
 export { serviceDayOf };
 export function currentServiceDay(): string {
@@ -79,25 +79,71 @@ async function openNc(actor: Actor, source: string, description: string, ctx: Ac
 
 // ───────────── Temperaturas
 
+/**
+ * Control semanal de neveras y congeladores: una lectura al empezar la semana
+ * y otra al terminarla. La semana de Pichuco va de miércoles a lunes (el
+ * martes cierra). Para cambiarlo, tocar TEMP_WEEK.
+ */
+export const TEMP_WEEK = { start: 3, end: 1, startLabel: "miércoles", endLabel: "lunes" };
+
+const weekdayOf = (iso: string) => new Date(iso + "T00:00:00Z").getUTCDay();
+/** Semana de control que contiene el día: [inicio, fin]. El día de cierre cuenta para la semana que terminó. */
+export function tempWeek(day: string) {
+  let start = day;
+  while (weekdayOf(start) !== TEMP_WEEK.start) start = addDays(start, -1);
+  let end = start;
+  while (weekdayOf(end) !== TEMP_WEEK.end) end = addDays(end, 1);
+  return { start, end };
+}
+
 export async function equipmentStatus(actor: Actor, day = currentServiceDay()) {
   assertCan(actor, "sanidad");
+  const week = tempWeek(day);
   const eq = await db.foodEquipment.findMany({
     where: { active: true },
-    include: { logs: { where: { at: around(day) }, include: { user: { select: { shortName: true } } }, orderBy: { at: "asc" } } },
+    include: {
+      logs: {
+        where: { at: { gte: around(week.start).gte, lt: around(week.end).lt } },
+        include: { user: { select: { shortName: true } } },
+        orderBy: { at: "asc" },
+      },
+    },
     orderBy: [{ sort: "asc" }, { name: "asc" }],
   });
   return eq.map((e) => {
-    const logs = e.logs.filter((l) => serviceDayOf(l.at) === day);
-    const views = logs.map((l) => ({ id: l.id, value: l.value, outOfRange: l.outOfRange, time: timeOf(l.at), user: l.user.shortName, correctiveAction: l.correctiveAction }));
+    const logs = e.logs.filter((l) => {
+      const d = serviceDayOf(l.at);
+      return d >= week.start && d <= week.end;
+    });
+    const view = (l: (typeof logs)[number]) => ({
+      id: l.id,
+      value: l.value,
+      outOfRange: l.outOfRange,
+      time: timeOf(l.at),
+      day: serviceDayOf(l.at),
+      user: l.user.shortName,
+      correctiveAction: l.correctiveAction,
+    });
+    const views = logs.map(view);
+    // Inicio: la primera lectura de la semana. Fin: una lectura el día de cierre de semana.
+    const inicio = views[0] ?? null;
+    const fin = views.find((l) => l.day === week.end && l.id !== inicio?.id) ?? null;
+    const isEndDay = day === week.end;
+    const closedDay = day > week.end; // martes: la semana ya terminó y la nueva empieza mañana
     return {
       id: e.id,
       name: e.name,
       kind: e.kind,
       minTemp: e.minTemp,
       maxTemp: e.maxTemp,
-      required: e.checksPerDay,
-      done: Math.min(logs.length, e.checksPerDay),
-      nextLabel: logs.length === 0 ? "Apertura" : logs.length === 1 && e.checksPerDay > 1 ? "Cierre" : null,
+      required: 2,
+      done: (inicio ? 1 : 0) + (fin ? 1 : 0),
+      inicio,
+      fin,
+      week,
+      /** Lo que toca hoy (null = nada pendiente; se puede registrar igual una lectura extra). */
+      nextLabel: closedDay ? null : !inicio ? "Inicio de semana" : isEndDay && !fin ? "Fin de semana" : null,
+      due: !closedDay && (!inicio || (isEndDay && !fin)),
       logs: views,
       last: views.at(-1) ?? null,
     };
@@ -529,10 +575,10 @@ export async function foodSafetyDashboard(actor: Actor) {
       : Promise.resolve([]),
     db.pestControlVisit.findFirst({ orderBy: { date: "desc" } }),
   ]);
-  // Lo que ya toca: la lectura de apertura siempre; la de cierre y la limpieza diaria, desde las 21:00.
+  // Temperaturas: control semanal (inicio y fin de semana). Limpieza diaria: desde las 21:00.
   const hour = Number(timeOf(now).slice(0, 2));
   const closing = hour >= CLOSING_HOUR || hour < DAY_CUTOFF_HOURS;
-  const tempsPending = equipment.filter((e) => e.done < (closing ? e.required : Math.min(1, e.required)));
+  const tempsPending = equipment.filter((e) => e.due);
   const cleaningDue = cleaning.filter((c) => c.due);
   const pestOverdue = pest?.nextVisit && dateOf(pest.nextVisit) < day ? pest : null;
   const pending =

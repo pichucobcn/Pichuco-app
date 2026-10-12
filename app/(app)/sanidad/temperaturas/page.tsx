@@ -1,7 +1,7 @@
 import { requireUserPage } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
-import { equipmentStatus, serviceDayOf } from "@/lib/services/sanidad";
+import { equipmentStatus, serviceDayOf, TEMP_WEEK } from "@/lib/services/sanidad";
 import { addDays, prettyDate, timeOf } from "@/lib/dates";
 import { PageTitle } from "@/components/PageTitle";
 import { NoAccess } from "@/components/NoAccess";
@@ -25,6 +25,9 @@ export default async function TemperaturasPage() {
     <main>
       <PageTitle title="Temperaturas" back="/sanidad" />
       <SanidadNav />
+      <p className="small muted" style={{ marginTop: 0 }}>
+        Control semanal: una lectura al <b>empezar la semana ({TEMP_WEEK.startLabel})</b> y otra al <b>terminarla ({TEMP_WEEK.endLabel})</b>. Si hace falta, se puede anotar una lectura extra cualquier día.
+      </p>
       <div className="stack">
         {equipment.map((e) => (
           <article key={e.id} id={`eq-${e.id}`} className="card">
@@ -32,11 +35,12 @@ export default async function TemperaturasPage() {
               <div style={{ flex: 1 }}>
                 <b style={{ fontSize: 17 }}>{e.name}</b>
                 <div className="small muted">
-                  Rango {e.minTemp} a {e.maxTemp} °C · {e.required} {e.required === 1 ? "lectura" : "lecturas"} al día
+                  Rango {e.minTemp} a {e.maxTemp} °C · Inicio: {e.inicio ? `${e.inicio.value} °C (${prettyDate(e.inicio.day)})` : "falta"} · Fin:{" "}
+                  {e.fin ? `${e.fin.value} °C` : prettyDate(e.week.end)}
                 </div>
               </div>
-              <span className={`tag ${e.done >= e.required ? "green" : "amber"}`}>
-                {e.done}/{e.required} hoy
+              <span className={`tag ${e.done >= e.required ? "green" : e.due ? "amber" : "brown"}`}>
+                {e.done}/{e.required} semana
               </span>
             </div>
             {e.logs.length > 0 && (

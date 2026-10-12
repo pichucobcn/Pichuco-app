@@ -122,3 +122,32 @@ test("Pichuco AI: temperaturas, limpieza, elaboraciones y estado", async () => {
   r = await localAgent(jp, "¿Qué controles faltan?");
   assert.match(r.text, /Temperaturas por tomar/);
 });
+
+test("control semanal de neveras: inicio el miércoles, fin el lunes, martes cerrado", async () => {
+  const { tempWeek, equipmentStatus } = await import("../lib/services/sanidad");
+  assert.deepEqual(tempWeek("2026-10-12"), { start: "2026-10-07", end: "2026-10-12" }); // lunes
+  assert.deepEqual(tempWeek("2026-10-13"), { start: "2026-10-07", end: "2026-10-12" }); // martes (cerrado)
+  assert.deepEqual(tempWeek("2026-10-14"), { start: "2026-10-14", end: "2026-10-19" }); // miércoles
+  const gian = await user("gian@pichuco.es");
+  const eq = await db.foodEquipment.create({ data: { name: "Nevera T9", kind: "REFRIGERACION", minTemp: 0, maxTemp: 4, sort: 99 } });
+  const st = async (day: string) => (await equipmentStatus(gian, day)).find((e) => e.id === eq.id)!;
+  // 19:00 en Madrid ≈ 17:00 UTC
+  const at = (day: string) => new Date(new Date(day + "T17:00:00Z").getTime());
+  let s = await st("2026-10-14");
+  assert.equal(s.due, true);
+  assert.equal(s.nextLabel, "Inicio de semana");
+  await db.temperatureLog.create({ data: { equipmentId: eq.id, value: 3, at: at("2026-10-14"), userId: gian.id } });
+  s = await st("2026-10-16");
+  assert.equal(s.due, false);
+  assert.equal(s.done, 1);
+  s = await st("2026-10-19");
+  assert.equal(s.due, true);
+  assert.equal(s.nextLabel, "Fin de semana");
+  await db.temperatureLog.create({ data: { equipmentId: eq.id, value: 3.5, at: at("2026-10-19"), userId: gian.id } });
+  s = await st("2026-10-19");
+  assert.equal(s.done, 2);
+  assert.equal(s.due, false);
+  s = await st("2026-10-20");
+  assert.equal(s.due, false);
+  await db.foodEquipment.update({ where: { id: eq.id }, data: { active: false } });
+});

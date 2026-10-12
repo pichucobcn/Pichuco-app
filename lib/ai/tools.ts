@@ -606,7 +606,8 @@ export const TOOLS: Record<string, ToolDef> = {
       const d = await foodSafetyDashboard(actor);
       return {
         result: {
-          temperaturesPending: d.tempsPending.map((e) => ({ equipment: e.name, done: e.done, required: e.required })),
+          temperaturesPending: d.tempsPending.map((e) => ({ equipment: e.name, toca: e.nextLabel, doneThisWeek: e.done, requiredPerWeek: e.required })),
+          temperatureControl: "Semanal: una lectura al inicio de la semana (miércoles) y otra al final (lunes).",
           cleaningPending: d.cleaningDue.map((c) => ({ item: c.name, frequency: c.frequency })),
           expiring: d.expiring.map((e) => ({ name: e.name, lot: e.lot, state: expiryState(e.expiresAt) })),
           openIncidents: d.openNcs.map((n) => n.description),

@@ -39,7 +39,7 @@ export function TemperatureForm({ equipmentId, min, max, label }: { equipmentId:
           aria-label="Temperatura en grados"
         />
         <button className="btn" disabled={busy || value === ""} style={{ flex: "none" }}>
-          <Icon name="check" size={18} /> {label ? `Registrar ${label.toLowerCase()}` : "Registrar"}
+          <Icon name="check" size={18} /> {label ? `Registrar ${label.toLowerCase().replace(" de semana", "")}` : "Lectura extra"}
         </button>
       </div>
       {out && (
@@ -86,10 +86,6 @@ export function EquipmentForm() {
             <option value="CONGELACION">Congelación</option>
             <option value="CALIENTE">Mantenimiento en caliente</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Lecturas al día</label>
-          <input className="input" type="number" min={1} max={6} value={f.checksPerDay} onChange={(e) => setF({ ...f, checksPerDay: e.target.value })} />
         </div>
       </div>
       <div className="grid-2">
