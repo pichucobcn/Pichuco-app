@@ -10,6 +10,7 @@ import { notify } from "../services/notifications";
 import { audit } from "../services/audit";
 import { completeTask, createTask, describeTask, listTasks, updateTask } from "../services/tasks";
 import { findUserByName, teamOverview } from "../services/team";
+import { clockRecords } from "../services/clock";
 import { findProduct, fmtEur, fmtQty, isLow, listProducts, lowStock, suggestedQuantity } from "../services/stock";
 import { findSupplier, DAY_SHORT } from "../services/suppliers";
 import {
@@ -132,6 +133,41 @@ export const TOOLS: Record<string, ToolDef> = {
           date: i.date,
           working: s.staff,
           clockedNow: i.date === todayISO() ? team.map((t) => ({ name: t.shortName, status: t.status })) : undefined,
+        },
+      };
+    },
+  },
+  get_clock_records: {
+    description:
+      "Fichajes registrados (entrada, salida, pausas y horas trabajadas) de una persona o de todo el equipo en una fecha o un período. Usalo para '¿a qué hora fichó ayer Juan Pablo?', '¿cuántas horas hizo Eva esta semana?'. Cada uno puede ver los suyos; los de otros, sólo el jefe.",
+    schema: z.object({ person: z.string().optional().nullable(), date: optDate.optional(), from: optDate.optional(), to: optDate.optional() }),
+    input_schema: {
+      type: "object",
+      properties: {
+        person: { type: "string", description: "Nombre de la persona. Vacío = todo el equipo (o uno mismo si no es jefe)." },
+        date: { ...dateProp, description: "Un día concreto (YYYY-MM-DD). Para un período usá from y to." },
+        from: dateProp,
+        to: dateProp,
+      },
+    },
+    mutates: false,
+    run: async (actor, i) => {
+      let userId: string | null = null;
+      if (i.person) {
+        const u = await findUserByName(i.person);
+        if (!u) throw new Error(`No encuentro a "${i.person}" en el equipo.`);
+        userId = u.id;
+      }
+      const from = i.date ?? i.from ?? addDays(todayISO(), -6);
+      const to = i.date ?? i.to ?? todayISO();
+      const days = await clockRecords(actor, { userId, from, to });
+      return {
+        result: {
+          from,
+          to,
+          days: days.map((d) => ({ date: d.date, person: d.shortName, entrada: d.entrada, salida: d.salida, sinSalida: d.sinSalida, pausas: d.pausas, horas: d.horas, notas: d.notas })),
+          totalHoras: days.length ? `${Math.floor(days.reduce((t, d) => t + d.minutos, 0) / 60)} h ${days.reduce((t, d) => t + d.minutos, 0) % 60} min` : "0 h",
+          note: days.length ? undefined : "No hay fichajes en ese período.",
         },
       };
     },

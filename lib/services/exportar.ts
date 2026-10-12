@@ -4,11 +4,10 @@
  * para quien gestiona sanidad, compras y tareas para quien las lleva.
  * Sin fechas, se exporta todo el histórico.
  */
-import type { ClockEvent } from "@prisma/client";
 import { db } from "../db";
 import { addDays, dateOf, isISODate, serviceDayOf, timeOf, toDbDate, todayISO } from "../dates";
 import { assertCan, can, ValidationError, type Permission } from "../permissions";
-import { workedMinutes } from "./clock";
+import { clockRecords } from "./clock";
 import { allergenLabel } from "./sanidad";
 import type { Actor } from "./context";
 
@@ -33,7 +32,8 @@ const inDays = ({ from, to }: Range) => (d: Date) => {
 };
 const dateRange = ({ from, to }: Range) => ({ gte: toDbDate(from), lte: toDbDate(to) });
 
-const CLOCK_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", PAUSA_INICIO: "Pausa", PAUSA_FIN: "Vuelta" };
+/** La exportación ya comprobó el permiso del conjunto; para leer los fichajes de todos actúa como jefe. */
+const SYSTEM_MANAGER = { id: "", role: "JEFE" } as unknown as Actor;
 
 export const DATASETS: ExportDataset[] = [
   {
@@ -42,37 +42,11 @@ export const DATASETS: ExportDataset[] = [
     description: "Una fila por persona y día: entrada, salida, pausas y horas trabajadas.",
     permission: "fichajes_equipo",
     async build(r) {
-      const events = await db.clockEvent.findMany({ where: { at: atRange(r) }, include: { user: { select: { name: true } } }, orderBy: { at: "asc" } });
-      const ok = inDays(r);
-      const groups = new Map<string, (ClockEvent & { user: { name: string } })[]>();
-      for (const e of events.filter((e) => ok(e.at))) {
-        const k = `${serviceDayOf(e.at)}|${e.user.name}`;
-        groups.set(k, [...(groups.get(k) ?? []), e]);
-      }
-      const rows: Row[] = [["Fecha", "Persona", "Entrada", "Salida", "Pausas", "Horas trabajadas", "Detalle", "Notas"]];
-      for (const [k, evs] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-        const [day, name] = k.split("|");
-        const first = evs.find((e) => e.type === "ENTRADA");
-        const last = [...evs].reverse().find((e) => e.type === "SALIDA");
-        const pauses: string[] = [];
-        evs.forEach((e, i) => {
-          if (e.type !== "PAUSA_INICIO") return;
-          const end = evs.slice(i + 1).find((x) => x.type === "PAUSA_FIN");
-          pauses.push(`${timeOf(e.at)}–${end ? timeOf(end.at) : "?"}`);
-        });
-        const closed = evs.at(-1)?.type === "SALIDA";
-        rows.push([
-          day,
-          name,
-          first ? timeOf(first.at) : "",
-          last ? timeOf(last.at) : closed ? "" : "sin salida",
-          pauses.join(", "),
-          closed ? hm(workedMinutes(evs, evs.at(-1)!.at)) : "",
-          evs.map((e) => `${CLOCK_LABEL[e.type]} ${timeOf(e.at)}`).join(" · "),
-          evs.map((e) => e.note).filter(Boolean).join(" · "),
-        ]);
-      }
-      return rows;
+      const days = await clockRecords(SYSTEM_MANAGER, { from: r.from, to: r.to });
+      return [
+        ["Fecha", "Persona", "Entrada", "Salida", "Pausas", "Horas trabajadas", "Detalle", "Notas"],
+        ...days.map((d) => [d.date, d.name, d.entrada, d.salida ?? (d.sinSalida ? "sin salida" : ""), d.pausas.join(", "), d.sinSalida ? "" : hm(d.minutos), d.detalle, d.notas]),
+      ];
     },
   },
   {

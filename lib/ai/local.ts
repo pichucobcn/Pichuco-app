@@ -78,6 +78,19 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
   const date = parseSpanishDate(t, today) ?? today;
   const actions: AiAction[] = [];
 
+  // 0) Fichajes pasados: "¿a qué hora fichó ayer Juan?", "¿cuántas horas hizo Eva?"
+  if (/fich[oóé]|fichaje|a qu[eé] hora (entr|sali|lleg|se fue)|cu[aá]ntas horas/.test(t)) {
+    const person = firstName(t);
+    const r = await call(actor, input, actions, "get_clock_records", { person, date: parseSpanishDate(t, today) ?? today });
+    if (!r.ok) return { text: `No pude ver los fichajes: ${r.data.error}`, actions };
+    const days = r.data.days as any[];
+    if (!days.length) return { text: `No hay fichajes ${person ? `de ${cap(person)} ` : ""}para ${relativeDay(r.data.from)}.`, actions };
+    const lines = days.map(
+      (d) => `• ${d.person}: entrada ${d.entrada ?? "—"}, salida ${d.salida ?? (d.sinSalida ? "sin fichar" : "—")}${d.pausas.length ? `, pausa ${d.pausas.join(", ")}` : ""} · ${d.sinSalida ? "jornada abierta" : d.horas}`,
+    );
+    return { text: `Fichajes de ${relativeDay(r.data.from)}:\n\n${lines.join("\n")}`, actions };
+  }
+
   // 0a) Temperaturas: "la C1 está a 3 grados", "B3 a -19", "la cámara 1 está a 3°"
   const eqWord =
     t.match(/(?:nevera|heladera|congelador|c[aá]mara|frigo[a-z]*)?\s*\b([bc]\s?\d)\b/) ??

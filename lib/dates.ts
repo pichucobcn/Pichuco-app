@@ -104,6 +104,8 @@ export function parseSpanishDate(text: string, today = todayISO()): string | nul
   const iso = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   if (iso && isISODate(iso[1])) return iso[1];
   if (/pasado\s+mañana/.test(t)) return addDays(today, 2);
+  if (/\banteayer\b/.test(t)) return addDays(today, -2);
+  if (/\bayer\b/.test(t)) return addDays(today, -1);
   const mananas = (t.match(/\bmañana\b/g) || []).length;
   const laManana = (t.match(/\bla\s+mañana\b/g) || []).length;
   if (mananas > laManana) return addDays(today, 1);
