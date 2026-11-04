@@ -78,7 +78,8 @@ test("resumen del día: temperaturas pendientes, caducados e incidencias", async
   const d = await foodSafetyDashboard(martin);
   assert.ok(d.tempsPending.length > 0);
   assert.ok(d.expiring.some((e) => e.state === "caducado" && e.name === "Salsa de tomate"));
-  assert.ok(d.expiring.some((e) => e.state === "hoy" && e.name === "Masa de pizza"));
+  // La masa de prueba caduca hoy a las 22:00: según la hora del test sale "hoy" o ya "caducado".
+  assert.ok(d.expiring.some((e) => (e.state === "hoy" || e.state === "caducado") && e.name === "Masa de pizza" && e.lot.startsWith(addDays(todayISO(), -3).slice(2).replace(/-/g, ""))));
   assert.ok(d.cleaningDue.some((c) => c.name.startsWith("Campana")));
   assert.ok(d.trainingsExpiring.some((t) => t.user.shortName === "Gian"));
 });

@@ -6,7 +6,7 @@ import { assertCan, can, ForbiddenError, NotFoundError, ValidationError } from "
 import { audit } from "./audit";
 import type { Actor, ActionContext } from "./context";
 import { notify } from "./notifications";
-import { findProduct, fmtEur, fmtQty } from "./stock";
+import { findProduct, fmtEur, fmtQty, splitSupplierMention } from "./stock";
 import { findSupplier, nextDeliveryDate } from "./suppliers";
 import { areaManagers, findUserByName } from "./team";
 import { formatPhone } from "../phone";
@@ -207,6 +207,10 @@ export const orderInputSchema = z.object({
       z.object({
         productId: z.string().optional(),
         productName: z.string().optional(),
+        /** Producto que todavía no está en el catálogo: se agrega al del proveedor. */
+        newProductName: z.string().trim().min(1).max(120).optional(),
+        /** Unidad del producto nuevo (kg, l, cajas…). */
+        unit: z.string().trim().max(20).optional(),
         quantity: z.number().positive().max(100000),
         unitPrice: z.number().min(0).optional(),
       }),
@@ -232,15 +236,37 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
       ? await findSupplier(input.supplierName)
       : null;
 
-  // Resolver productos (por id o nombre aproximado)
+  // ¿El proveedor viene dentro del texto del producto? ("queso de cabra a Ken Foods")
+  if (!supplier) {
+    for (const l of input.lines) {
+      if (!l.productName) continue;
+      const m = await splitSupplierMention(l.productName);
+      if (m) {
+        supplier ??= await db.supplier.findUnique({ where: { id: m.supplierId } });
+        if (m.rest) l.productName = m.rest;
+      }
+    }
+  }
+
+  // Resolver productos: por id, por nombre aproximado o, si no existe, producto nuevo del proveedor.
   const lines = [];
+  const newProducts: string[] = [];
+  const addToCatalog = async (rawName: string, unit?: string) => {
+    if (!supplier) throw new ValidationError(`“${rawName}” no está en el catálogo: decí a qué proveedor se lo pedimos y lo agrego.`);
+    const name = rawName.trim().charAt(0).toUpperCase() + rawName.trim().slice(1);
+    const same = await db.product.findFirst({ where: { supplierId: supplier.id, name: { equals: name, mode: "insensitive" } }, include: { supplier: true } });
+    if (same) return same;
+    newProducts.push(name);
+    return db.product.create({ data: { name, unit: unit?.trim() || "u.", category: "Otros", supplierId: supplier.id }, include: { supplier: true } });
+  };
   for (const l of input.lines) {
-    const product = l.productId
-      ? await db.product.findUnique({ where: { id: l.productId }, include: { supplier: true } })
-      : l.productName
-        ? await findProduct(l.productName, { supplierId: supplier?.id })
-        : null;
-    if (!product) throw new NotFoundError(`No encuentro el producto "${l.productName ?? l.productId}" en el stock.`);
+    let product = l.productId ? await db.product.findUnique({ where: { id: l.productId }, include: { supplier: true } }) : null;
+    if (!product && l.newProductName) product = await addToCatalog(l.newProductName, l.unit);
+    if (!product && l.productName) {
+      product = await findProduct(l.productName, { supplierId: supplier?.id, strict: !!supplier });
+      if (!product && supplier) product = await addToCatalog(l.productName, l.unit);
+    }
+    if (!product) throw new NotFoundError(`No encuentro “${l.productName ?? l.productId}” en el catálogo. Decime a qué proveedor se lo pedimos y lo agrego.`);
     lines.push({ product, quantity: l.quantity, unitPrice: l.unitPrice ?? product.lastPrice ?? product.usualPrice ?? 0 });
   }
 
@@ -284,6 +310,11 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
   });
 
   await addEvent(order.id, actor, `Preparó el pedido${hasUnpriced ? "" : ` (${fmtEur(total)})`}. ${order.approvalNote}`, ctx);
+  if (newProducts.length) {
+    const list = newProducts.join(", ");
+    await addEvent(order.id, actor, `Productos nuevos agregados al catálogo de ${supplier.name}: ${list}.`, ctx);
+    await audit(actor, "product.create", `Productos nuevos de ${supplier.name} (desde el pedido ${orderTitle(order)}): ${list}`, ctx, { orderId: order.id });
+  }
   await audit(actor, "purchase.create", `${orderTitle(order)}: ${orderSummary(order)} — ${hasUnpriced ? "sin precio cargado" : fmtEur(total)}. ${order.approvalNote}`, ctx, {
     orderId: order.id,
   });
@@ -297,7 +328,7 @@ export async function createOrder(actor: Actor, raw: z.input<typeof orderInputSc
       `/compras/${order.number}`,
     );
   }
-  return { order, decision, approved, hasUnpriced };
+  return { order, decision, approved, hasUnpriced, newProducts };
 }
 
 // ───────────── Transiciones

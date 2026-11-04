@@ -163,3 +163,38 @@ test("llamar antes a: por defecto quien pide; elegible sólo jefe y cocina; sale
   assert.match(r.text, /Llamar antes a: Juan Pablo/);
   assert.match(r.text, /mascarpone/);
 });
+
+test("pedido con un producto que no está en el catálogo: se agrega al proveedor", async () => {
+  const gian = await user("gian@pichuco.es");
+  const ken = await db.supplier.findFirstOrThrow({ where: { name: "Ken Foods" } });
+  // Desde la pantalla: producto nuevo con unidad
+  const r = await createOrder(gian, {
+    supplierId: ken.id,
+    lines: [{ newProductName: "queso de cabra", unit: "kg", quantity: 2 }],
+  });
+  assert.deepEqual(r.newProducts, ["Queso de cabra"]);
+  const p = await db.product.findFirstOrThrow({ where: { name: "Queso de cabra", supplierId: ken.id } });
+  assert.equal(p.unit, "kg");
+  assert.equal(p.category, "Otros");
+  assert.equal(r.order.status, "PENDIENTE_APROBACION"); // sin precio: lo aprueba Martín
+  // Repetirlo no duplica
+  const r2 = await createOrder(gian, { supplierId: ken.id, lines: [{ newProductName: "Queso de cabra", unit: "kg", quantity: 1 }] });
+  assert.deepEqual(r2.newProducts, []);
+  assert.equal(await db.product.count({ where: { name: "Queso de cabra" } }), 1);
+});
+
+test("Pichuco: producto nuevo con el proveedor en la frase; sin proveedor, pregunta", async () => {
+  const gian = await user("gian@pichuco.es");
+  const r = await localAgent(gian, "Pedile 3 kg de burrata a Lácteos da Limia");
+  assert.match(r.text, /a Lácteos da Limia/);
+  assert.match(r.text, /burrata/i);
+  assert.ok(await db.product.findFirst({ where: { name: "Burrata", supplier: { name: "Lácteos da Limia" } } }));
+  // Un producto conocido sigue resolviéndose al existente (no crea uno nuevo)
+  const before = await db.product.count();
+  const r2 = await localAgent(gian, "necesitamos 20 kilos de queso merkapizza para el viernes");
+  assert.match(r2.text, /queso napoli rallado/);
+  assert.equal(await db.product.count(), before);
+  // Sin proveedor y sin producto conocido: pide el proveedor
+  const r3 = await localAgent(gian, "Comprá 4 kg de guanciale");
+  assert.match(r3.text, /proveedor/);
+});

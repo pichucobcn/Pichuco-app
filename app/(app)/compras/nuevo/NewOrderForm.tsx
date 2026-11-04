@@ -32,6 +32,8 @@ export function NewOrderForm({
   const [time, setTime] = useState(supplier?.deliveryTime ?? "");
   const [timeTo, setTimeTo] = useState(supplier?.deliveryTimeTo ?? "");
   const [notes, setNotes] = useState("");
+  /** Productos que todavía no están en el catálogo: se agregan al del proveedor al guardar. */
+  const [extra, setExtra] = useState<{ name: string; qty: string; unit: string }[]>([]);
   const [contactId, setContactId] = useState(defaultContactId);
   const contact = contacts.find((c) => c.id === contactId);
   const [busy, setBusy] = useState(false);
@@ -41,6 +43,7 @@ export function NewOrderForm({
     setSupplierId(id);
     const s = suppliers.find((x) => x.id === id);
     setQty({});
+    setExtra([]);
     setDate(s?.nextDelivery ?? "");
     setTime(s?.deliveryTime ?? "");
     setTimeTo(s?.deliveryTimeTo ?? "");
@@ -53,8 +56,12 @@ export function NewOrderForm({
         .filter((l) => l.q > 0),
     [supplier, qty],
   );
+  const newLines = extra
+    .map((x) => ({ name: x.name.trim(), unit: x.unit.trim() || "u.", q: Number(x.qty.replace(",", ".")) }))
+    .filter((x) => x.name && x.q > 0);
+  const count = lines.length + newLines.length;
   const total = lines.reduce((s, l) => s + l.q * l.p.price, 0);
-  const unpriced = lines.some((l) => !l.p.price);
+  const unpriced = lines.some((l) => !l.p.price) || newLines.length > 0;
   const sensitive = lines.some((l) => policy.alwaysApprove.map((c) => c.toLowerCase()).includes(l.p.category.toLowerCase()));
   const approval =
     total > policy.managerLimit
@@ -72,13 +79,17 @@ export function NewOrderForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!lines.length) return setError("Poné al menos una cantidad.");
+    if (!count) return setError("Poné al menos una cantidad.");
+    if (extra.some((x) => x.name.trim() && !(Number(x.qty.replace(",", ".")) > 0))) return setError("Poné la cantidad del producto nuevo.");
     setBusy(true);
     setError(undefined);
     try {
       const r = await api<{ number: number }>("/api/purchases", {
         supplierId,
-        lines: lines.map((l) => ({ productId: l.p.id, quantity: l.q })),
+        lines: [
+          ...lines.map((l) => ({ productId: l.p.id, quantity: l.q })),
+          ...newLines.map((x) => ({ newProductName: x.name, unit: x.unit, quantity: x.q })),
+        ],
         deliveryDate: date || undefined,
         deliveryTime: time || undefined,
         deliveryTimeTo: time && timeTo ? timeTo : undefined,
@@ -177,6 +188,53 @@ export function NewOrderForm({
             })}
           </tbody>
         </table>
+
+        <div className="new-products">
+          {extra.map((x, i) => (
+            <div key={i} className="new-product">
+              <input
+                className="input"
+                placeholder="Producto nuevo"
+                value={x.name}
+                onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))}
+                aria-label="Nombre del producto nuevo"
+                maxLength={120}
+              />
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder="0"
+                value={x.qty}
+                onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, qty: e.target.value } : y)))}
+                aria-label="Cantidad del producto nuevo"
+                style={{ textAlign: "right" }}
+              />
+              <select
+                className="input"
+                value={x.unit}
+                onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)))}
+                aria-label="Unidad del producto nuevo"
+              >
+                {["u.", "kg", "g", "l", "cajas", "paquetes", "latas", "botellas", "bandejas", "sacos", "docenas", "manojos", "barriles"].map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="link-btn" onClick={() => setExtra(extra.filter((_, j) => j !== i))} aria-label="Quitar">
+                Quitar
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn add block small" onClick={() => setExtra([...extra, { name: "", qty: "", unit: "u." }])}>
+            + Producto nuevo
+          </button>
+          {extra.length > 0 && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Los productos nuevos se agregan al catálogo de {supplier?.name}. El precio se carga después, en Stock.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="card stack">
@@ -184,10 +242,10 @@ export function NewOrderForm({
           <span className="eyebrow">Total estimado</span>
           <span className="spacer" />
           <b className="order-total" style={{ fontSize: 26 }}>
-            {lines.length && lines.every((l) => !l.p.price) ? "Sin precio" : unpriced ? `${eur(total)} + sin precio` : eur(total)}
+            {count && total === 0 ? "Sin precio" : unpriced ? `${eur(total)} + sin precio` : eur(total)}
           </b>
         </div>
-        {lines.length > 0 && <span className={`tag ${approval.tone}`} style={{ whiteSpace: "normal" }}>{approval.text}</span>}
+        {count > 0 && <span className={`tag ${approval.tone}`} style={{ whiteSpace: "normal" }}>{approval.text}</span>}
         {supplier?.minOrder && total > 0 && total < supplier.minOrder && (
           <span className="tag amber" style={{ whiteSpace: "normal" }}>
             El pedido mínimo de {supplier.name} es {eur(supplier.minOrder)}.
@@ -198,7 +256,7 @@ export function NewOrderForm({
           <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Opcional" />
         </div>
         {error && <p className="error">{error}</p>}
-        <button className="btn block" disabled={busy || !lines.length}>
+        <button className="btn block" disabled={busy || !count}>
           Preparar pedido
         </button>
         <p className="small muted" style={{ margin: 0 }}>

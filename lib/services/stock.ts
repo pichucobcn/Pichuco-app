@@ -53,13 +53,26 @@ const words = (s: string) =>
     .map((w) => w.replace(/(?<=[a-z]{3})(es|s)$/, ""));
 const wordMatch = (a: string, b: string) => a === b || (a.length >= 4 && b.startsWith(a)) || (b.length >= 4 && a.startsWith(b));
 
+/** Si el texto nombra un proveedor ("queso de cabra a Ken Foods"), lo separa: devuelve su id y el resto del texto. */
+export async function splitSupplierMention(text: string) {
+  const suppliers = await db.supplier.findMany({ where: { active: true } });
+  for (const s of suppliers) {
+    const sn = normalize(s.name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\s*\\b(?:de |a |al |en |para )?${sn}\\b\\s*`, "i");
+    const plain = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const m = plain.toLowerCase().match(re);
+    if (m && m.index != null) return { supplierId: s.id, rest: (text.slice(0, m.index) + " " + text.slice(m.index + m[0].length)).replace(/\s+/g, " ").trim() };
+  }
+  return null;
+}
+
 /**
  * Busca un producto por nombre aproximado ("mozza", "queso merkapizza", "harina 00").
  * Si el texto nombra un proveedor ("queso merkapizza") o viene `supplierId`, busca
  * sólo entre sus productos. Si hay varios igual de probables, no adivina: lanza un
  * error con las opciones.
  */
-export async function findProduct(name: string, opts: { supplierId?: string | null } = {}) {
+export async function findProduct(name: string, opts: { supplierId?: string | null; strict?: boolean } = {}) {
   let text = normalize(name);
   const all = await db.product.findMany({ where: { active: true }, include: { supplier: true } });
 
@@ -91,6 +104,11 @@ export async function findProduct(name: string, opts: { supplierId?: string | nu
       return { p, hits, covered, extra: pw.length - covered, prefix };
     })
     .filter((x) => x.hits > 0 || x.prefix);
+  // Estricto: sólo vale si todas las palabras pedidas están en el producto (si no, es un producto nuevo).
+  if (opts.strict) {
+    const all = scored.filter((x) => x.hits === qw.length);
+    scored.splice(0, scored.length, ...all);
+  }
   if (!scored.length) return null;
   scored.sort((a, b) => b.hits - a.hits || b.prefix - a.prefix || a.extra - b.extra);
   const top = scored.filter((x) => x.hits === scored[0].hits && x.prefix === scored[0].prefix);

@@ -637,3 +637,9 @@ main > .composer, .ai-hero.chat-page .composer { position: sticky; bottom: calc(
 /* Exportar datos */
 .export-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
 .export-row + .export-row { border-top: 1px solid var(--line); }
+
+/* Pedido: productos nuevos */
+.new-products { display: grid; gap: 8px; margin-top: 12px; }
+.new-product { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.new-product .input:first-child { grid-column: 1 / -1; }
+.new-product .input { padding: 9px 8px; }

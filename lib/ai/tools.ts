@@ -473,9 +473,9 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   create_purchase_order: {
     description:
-      "Prepara un pedido de compra a un proveedor. Busca el proveedor habitual, usa el último precio y aplica las reglas de aprobación (automático, aprobación del jefe u obligatoria). NO envía nada al proveedor ni gasta: el envío se hace desde la app.",
+      "Prepara un pedido de compra a un proveedor. Busca el proveedor habitual, usa el último precio y aplica las reglas de aprobación (automático, aprobación del jefe u obligatoria). Si un producto no está en el catálogo y se indica el proveedor, se agrega solo al catálogo de ese proveedor (pasá la unidad si la dijeron). NO envía nada al proveedor ni gasta: el envío se hace desde la app.",
     schema: z.object({
-      items: z.array(z.object({ product: z.string(), quantity: z.number().positive() })).min(1),
+      items: z.array(z.object({ product: z.string(), quantity: z.number().positive(), unit: z.string().optional() })).min(1),
       supplier: z.string().optional(),
       delivery_date: optDate.optional(),
       call_before: z.string().optional(),
@@ -488,7 +488,11 @@ export const TOOLS: Record<string, ToolDef> = {
           type: "array",
           items: {
             type: "object",
-            properties: { product: { type: "string" }, quantity: { type: "number", description: "En la unidad del producto (kg, l, cajas…)" } },
+            properties: {
+              product: { type: "string" },
+              quantity: { type: "number", description: "En la unidad del producto (kg, l, cajas…)" },
+              unit: { type: "string", description: "Sólo para un producto nuevo: kg, l, cajas, paquetes, u.…" },
+            },
             required: ["product", "quantity"],
           },
         },
@@ -505,7 +509,7 @@ export const TOOLS: Record<string, ToolDef> = {
         actor,
         {
           supplierName: i.supplier,
-          lines: i.items.map((x: { product: string; quantity: number }) => ({ productName: x.product, quantity: x.quantity })),
+          lines: i.items.map((x: { product: string; quantity: number; unit?: string }) => ({ productName: x.product, quantity: x.quantity, unit: x.unit })),
           deliveryDate: i.delivery_date,
           callBeforeName: i.call_before,
           notes: i.notes,
@@ -513,7 +517,7 @@ export const TOOLS: Record<string, ToolDef> = {
         ctx,
       );
       return {
-        result: { ...orderView(r.order), approved: r.approved, approvalLevel: r.decision.level },
+        result: { ...orderView(r.order), approved: r.approved, approvalLevel: r.decision.level, newProductsAddedToCatalog: r.newProducts },
         summary: `Preparó el pedido #${r.order.number} a ${r.order.supplier.name}: ${orderSummary(r.order)} — ${orderTotalLabel(r.order)}. ${r.order.approvalNote}`,
       };
     },

@@ -191,7 +191,9 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     const callBefore = cbMatch?.[1];
     if (cbMatch) t = t.replace(cbMatch[0], "");
     const rest = stripDateWords(t.replace(/^.*?\b(compr[aá]r?|ped[ií](le)?( al proveedor)?|necesitamos|hace falta)(?![a-zñáéíóú])\s*/, ""));
-    const m = rest.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|l|litros?|cajas?|unidades?|u|sacos?|botellas?|latas?|bandejas?)?\s*(?:de\s+)?(.+)$/);
+    const m = rest.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilos?|gramos?|g|litros?|l|cajas?|unidades?|u|sacos?|botellas?|latas?|bandejas?|paquetes?|docenas?)?(?![a-záéíóúñ])\s*(?:de\s+)?(.+)$/);
+    const UNIT: Record<string, string> = { kilo: "kg", kilos: "kg", kg: "kg", g: "g", gramo: "g", gramos: "g", l: "l", litro: "l", litros: "l", u: "u.", unidad: "u.", unidades: "u." };
+    const unit = m?.[2] ? (UNIT[m[2]] ?? (m[2].endsWith("s") ? m[2] : m[2] + "s")) : undefined;
     const product = m ? m[3].replace(/\s+para\s+.*$/, "").trim() : rest;
     const quantity = m ? num(m[1]) : NaN;
     if (!can(actor, "compras")) {
@@ -204,7 +206,7 @@ export async function localAgent(actor: Actor, input: string): Promise<Reply> {
     }
     if (!Number.isFinite(quantity)) return { text: "¿Cuánto hay que pedir? Decime la cantidad, por ejemplo “Comprá 15 kg de mozzarella”.", actions };
     const r = await call(actor, input, actions, "create_purchase_order", {
-      items: [{ product, quantity }],
+      items: [{ product, quantity, unit }],
       delivery_date: parseSpanishDate(t, today) ?? undefined,
       call_before: callBefore,
     });
